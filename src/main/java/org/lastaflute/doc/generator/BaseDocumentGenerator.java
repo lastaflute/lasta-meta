@@ -43,6 +43,7 @@ public class BaseDocumentGenerator {
     //                                    Analyze Annotation
     //                                    ------------------
     protected List<String> analyzeAnnotationList(List<Annotation> annotationList) {
+        // TODO awaawa needs to sort fixedly not to avoid random differences of generated codes by jflute (2021/01/02)
         return annotationList.stream().map(annotation -> {
             final Class<? extends Annotation> annotationType = annotation.annotationType(); // e.g. @SeaPark
             final String typeName = adjustSimpleTypeName(annotationType); // e.g. SeaPark
