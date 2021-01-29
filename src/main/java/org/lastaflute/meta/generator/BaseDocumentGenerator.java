@@ -17,108 +17,53 @@ package org.lastaflute.meta.generator;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
-import org.dbflute.jdbc.Classification;
-import org.dbflute.util.DfReflectionUtil;
-import org.dbflute.util.DfTypeUtil;
-import org.dbflute.util.Srl;
+import org.lastaflute.meta.generator.annotation.MetaAnnotationAnalyzer;
+import org.lastaflute.meta.generator.type.MetaTypeNameAdjuster;
 
 /**
  * @author p1us2er0
  * @author jflute
- * @since 0.6.9 (2075/03/05 Sunday)
+ * @since 0.6.9 (2075/03/05 Sunday) // what? by jflute
  */
 public class BaseDocumentGenerator {
 
-    // ===================================================================================
-    //                                                                             Analyze
-    //                                                                             =======
-    // -----------------------------------------------------
-    //                                    Analyze Annotation
-    //                                    ------------------
-    protected List<String> analyzeAnnotationList(List<Annotation> annotationList) {
-        // TODO awaawa needs to sort fixedly not to avoid random differences of generated codes by jflute (2021/01/02)
-        return annotationList.stream().map(annotation -> {
-            final Class<? extends Annotation> annotationType = annotation.annotationType(); // e.g. @SeaPark
-            final String typeName = adjustSimpleTypeName(annotationType); // e.g. SeaPark
+    private final MetaTypeNameAdjuster metaTypeNameAdjuster = newMetaTypeNameAdjuster();
 
-            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-            // e.g.
-            //  public @interface SeaPark {
-            //      String dockside() default "over";
-            //      String hangar() default "mystic";
-            //  }
-            //
-            //  @SeaPark(hangar="shadow")
-            //  public String maihama;
-            // _/_/_/_/_/_/_/_/_/_/
-            // you can get method of concrete annotation by getDeclaredMethods()
-            final Map<String, Object> methodMap = Arrays.stream(annotationType.getDeclaredMethods()).filter(method -> {
-                final Object value = DfReflectionUtil.invoke(method, annotation, (Object[]) null); // e.g. shadow (of hangar)
-                final Object defaultValue = method.getDefaultValue(); // e.g. mystic (of hangar)
-                if (Objects.equals(value, defaultValue)) { // means non-specified attribute
-                    return false;
-                }
-                if (method.getReturnType().isArray() && Arrays.equals((Object[]) value, (Object[]) defaultValue)) { // means non-specified attribute
-                    return false;
-                }
-                return true; // specified attributes only here
-            }).collect(Collectors.toMap(method -> {
-                return method.getName();
-            }, method -> {
-                Object data = DfReflectionUtil.invoke(method, annotation, (Object[]) null); // e.g. shadow (of hangar)
-                if (data != null && data.getClass().isArray()) {
-                    final List<?> dataList = Arrays.asList((Object[]) data);
-                    if (dataList.isEmpty()) {
-                        return "";
-                    }
-                    data = dataList.stream().map(o -> {
-                        return o instanceof Class<?> ? adjustSimpleTypeName(((Class<?>) o)) : o;
-                    }).collect(Collectors.toList());
-                }
-                return data;
-            }, (u, v) -> v, LinkedHashMap::new));
+    protected MetaTypeNameAdjuster newMetaTypeNameAdjuster() {
+        return new MetaTypeNameAdjuster();
+    }
 
-            if (methodMap.isEmpty()) {
-                return typeName;
-            }
-            return typeName + methodMap;
-        }).collect(Collectors.toList());
+    private final MetaAnnotationAnalyzer metaAnnotationAnalyzer = newMetaAnnotationAnalyzer();
+
+    protected MetaAnnotationAnalyzer newMetaAnnotationAnalyzer() {
+        return new MetaAnnotationAnalyzer(metaTypeNameAdjuster);
     }
 
     // ===================================================================================
     //                                                                     Adjust TypeName
     //                                                                     ===============
     protected String adjustTypeName(Type type) {
-        return adjustTypeName(type.getTypeName());
+        return metaTypeNameAdjuster.adjustTypeName(type);
     }
 
     protected String adjustTypeName(String typeName) {
-        return typeName;
+        return metaTypeNameAdjuster.adjustTypeName(typeName);
     }
 
     protected String adjustSimpleTypeName(Type type) {
-        if (type instanceof Class<?>) {
-            final Class<?> clazz = ((Class<?>) type);
-            final String typeName;
-            if (Classification.class.isAssignableFrom(clazz)) {
-                typeName = Srl.replace(DfTypeUtil.toClassTitle(clazz), "CDef$", "CDef."); // e.g. CDef.MemberStatus
-            } else {
-                typeName = clazz.getSimpleName();
-            }
-            return typeName;
-        } else {
-            return adjustSimpleTypeName(adjustTypeName(type));
-        }
+        return metaTypeNameAdjuster.adjustSimpleTypeName(type);
     }
 
     protected String adjustSimpleTypeName(String typeName) {
-        return typeName.replaceAll("[a-z0-9]+\\.", "");
+        return metaTypeNameAdjuster.adjustSimpleTypeName(typeName);
+    }
+
+    // ===================================================================================
+    //                                                                          Annotation
+    //                                                                          ==========
+    protected List<String> analyzeAnnotationList(List<Annotation> annotationList) {
+        return metaAnnotationAnalyzer.analyzeAnnotationList(annotationList);
     }
 }

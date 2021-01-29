@@ -13,16 +13,24 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.unit.mock;
+package org.lastaflute.meta.unit.mock.web;
 
 import javax.validation.Valid;
 
+import org.hibernate.validator.constraints.Length;
 import org.lastaflute.web.validation.Required;
 
 /**
  * @author jflute
  */
 public class SeaForm {
+
+    @Required
+    public Integer stageId;
+
+    @Required
+    @Length(min = 2, max = 32)
+    public String stageName;
 
     @Valid
     public HangarPart hangar;
