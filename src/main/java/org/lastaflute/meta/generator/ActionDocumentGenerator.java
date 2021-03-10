@@ -214,7 +214,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         // in/out item (parameter, form, return)
         final List<TypeDocMeta> parameterTypeDocMetaList = DfCollectionUtil.newArrayList();
         Arrays.stream(executeMethod.getParameters()).filter(parameter -> {
-            return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getFormType().equals(parameter.getType()));
+            return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getSymbolFormType().equals(parameter.getType()));
         }).forEach(parameter -> { // except form parameter here
             final StringBuilder builder = new StringBuilder();
             builder.append("{").append(parameter.getName()).append("}");
@@ -267,15 +267,15 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         return execute.getFormMeta().map(lastafluteFormMeta -> {
             final TypeDocMeta formDocMeta = new TypeDocMeta();
             lastafluteFormMeta.getListFormParameterParameterizedType().ifPresent(type -> {
-                formDocMeta.setType(lastafluteFormMeta.getFormType());
+                formDocMeta.setType(lastafluteFormMeta.getSymbolFormType());
                 formDocMeta.setTypeName(adjustTypeName(type));
                 formDocMeta.setSimpleTypeName(adjustSimpleTypeName(type));
             }).orElse(() -> {
-                formDocMeta.setType(lastafluteFormMeta.getFormType());
-                formDocMeta.setTypeName(adjustTypeName(lastafluteFormMeta.getFormType()));
-                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getFormType()));
+                formDocMeta.setType(lastafluteFormMeta.getSymbolFormType());
+                formDocMeta.setTypeName(adjustTypeName(lastafluteFormMeta.getSymbolFormType()));
+                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getSymbolFormType()));
             });
-            final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getFormType());
+            final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getSymbolFormType());
             // #question can be emptyMap()? it seems like read-only in analyzeProperties() by jflute (2019/07/01)
             final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
             final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(formType, genericParameterTypesMap, depth);

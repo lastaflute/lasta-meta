@@ -19,9 +19,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
+import org.lastaflute.meta.meta.ActionDocMeta;
 
 /**
  * @author p1us2er0
@@ -33,6 +35,8 @@ public class SwaggerOption {
     //                                                                           Attribute
     //                                                                           =========
     protected Function<String, String> basePathLambda;
+    protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda;
+    protected Predicate<ActionDocMeta> targetActionDocMetaLambda;
     protected List<Map<String, Object>> headerParameterList;
     protected List<Map<String, Object>> securityDefinitionList;
 
@@ -48,6 +52,23 @@ public class SwaggerOption {
      */
     public void derivedBasePath(Function<String, String> oneArgLambda) {
         this.basePathLambda = oneArgLambda;
+    }
+
+    /**
+     * Derive form http method by filter. <br>
+     * In the following cases, the following judgment has priority. <br>
+     * <ul>
+     * <li>methods that use the HTTP method restriction style (get$index, post$index).</li>
+     * <li>Request is body (will be post).</li>
+     * </ul>
+     * @param oneArgLambda The callback of base path filter. (NotNull)
+     */
+    public void derivedDefaultFormHttpMethod(Function<ActionDocMeta, String> oneArgLambda) {
+        this.defaultFormHttpMethodLambda = oneArgLambda;
+    }
+
+    public void derivedTargetActionDocMeta(Predicate<ActionDocMeta> oneArgLambda) {
+        this.targetActionDocMetaLambda = oneArgLambda;
     }
 
     // ===================================================================================
@@ -157,6 +178,20 @@ public class SwaggerOption {
         return OptionalThing.ofNullable(basePathLambda, () -> {
             throw new IllegalStateException("Not set derivedBasePathLamda.");
         });
+    }
+
+    public Function<ActionDocMeta, String> getDefaultFormHttpMethod() {
+        if (defaultFormHttpMethodLambda == null) {
+        	return (swaggerOption) -> "get";
+        }
+        return defaultFormHttpMethodLambda;
+    }
+
+    public Predicate<ActionDocMeta> getTargetActionDocMeta() {
+        if (targetActionDocMetaLambda == null) {
+        	return (actionDocMeta) -> true;
+        }
+        return targetActionDocMetaLambda;
     }
 
     public OptionalThing<List<Map<String, Object>>> getHeaderParameterList() {

@@ -19,7 +19,6 @@ import java.util.Collections;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.utflute.core.PlainTestCase;
-import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.unit.mock.dbflute.MockCDef;
 import org.lastaflute.meta.unit.mock.web.SeaForm;
 

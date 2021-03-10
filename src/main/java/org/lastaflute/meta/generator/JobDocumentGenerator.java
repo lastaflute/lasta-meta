@@ -75,7 +75,7 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
             br.addNotice("Not found the job manager as Lasta Di component.");
             br.addItem("Advice");
-            br.addElement("LastaDoc needs JobManager to get job information.");
+            br.addElement("lasta-meta needs JobManager to get job information.");
             br.addElement("So confirm your app.xml (or test_app.xml?)");
             br.addElement("whether the Di xml includes lasta_job.xml or not.");
             final String msg = br.buildExceptionMessage();
@@ -89,7 +89,7 @@ public class JobDocumentGenerator extends BaseDocumentGenerator {
                 jobManager.reboot();
             } catch (RuntimeException e) {
                 final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
-                br.addNotice("Cannot reboot job scheduling for LastaDoc.");
+                br.addNotice("Cannot reboot job scheduling for lasta-meta.");
                 br.addItem("Advice");
                 br.addElement("Confirm nested exception message");
                 br.addElement("and your job environment in unit test.");

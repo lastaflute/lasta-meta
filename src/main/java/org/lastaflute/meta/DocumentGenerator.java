@@ -116,11 +116,11 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                         Action Meta
     //                                                                         ===========
-    public void saveLastaDocMeta() {
-        final Map<String, Object> lastaDocDetailMap = generateLastaDocDetailMap();
-        final String json = createJsonEngine().toJson(lastaDocDetailMap);
+    public void saveLastaMeta() {
+        final Map<String, Object> lastaMetaDetailMap = generateLastaetailMap();
+        final String json = createJsonEngine().toJson(lastaMetaDetailMap);
 
-        final Path path = Paths.get(getLastaDocDir(), "analyzed-lastadoc.json");
+        final Path path = Paths.get(getLastaMetaDir(), "analyzed-lastadoc.json");
         final Path parentPath = path.getParent();
         if (!Files.exists(parentPath)) {
             try {
@@ -137,14 +137,23 @@ public class DocumentGenerator {
         }
     }
 
-    protected Map<String, Object> generateLastaDocDetailMap() {
+    /**
+     * @deprecated
+     * @see DocumentGenerator#saveLastaDocMeta()
+     */
+    @Deprecated
+    public void saveLastaDocMeta() {
+    	this.saveLastaMeta();
+    }
+
+    protected Map<String, Object> generateLastaetailMap() {
         final List<ActionDocMeta> actionDocMetaList = createActionDocumentGenerator().generateActionDocMetaList();
-        final Map<String, Object> lastaDocDetailMap = DfCollectionUtil.newLinkedHashMap();
-        lastaDocDetailMap.put("actionDocMetaList", actionDocMetaList);
+        final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
+        lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
         createJobDocumentGenerator().ifPresent(jobDocumentGenerator -> {
-            lastaDocDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
+            lastaMetaDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
         });
-        return lastaDocDetailMap;
+        return lastaMetaDetailMap;
     }
 
     protected ActionDocumentGenerator createActionDocumentGenerator() {
@@ -161,8 +170,8 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected String getLastaDocDir() {
-        return createDocumentGeneratorFactory().getLastaDocDir();
+    protected String getLastaMetaDir() {
+        return createDocumentGeneratorFactory().getLastaMetaDir();
     }
 
     public RealJsonEngine createJsonEngine() {

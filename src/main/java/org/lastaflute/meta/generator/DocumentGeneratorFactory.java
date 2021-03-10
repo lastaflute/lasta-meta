@@ -65,7 +65,7 @@ public class DocumentGeneratorFactory {
         });
     }
 
-    public String getLastaDocDir() {
+    public String getLastaMetaDir() {
         if (new File("./pom.xml").exists()) {
             return "./target/lastadoc/";
         }

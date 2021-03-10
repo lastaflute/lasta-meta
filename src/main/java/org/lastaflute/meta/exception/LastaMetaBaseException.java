@@ -18,15 +18,15 @@ package org.lastaflute.meta.exception;
 /**
  * @author p1us2er0
  */
-public class SwaggerDefaultValueParseFailureException extends LastaMetaBaseException {
+public class LastaMetaBaseException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
-    public SwaggerDefaultValueParseFailureException(String msg) {
+    public LastaMetaBaseException(String msg) {
         super(msg);
     }
 
-    public SwaggerDefaultValueParseFailureException(String msg, Throwable cause) {
+    public LastaMetaBaseException(String msg, Throwable cause) {
         super(msg, cause);
     }
 }

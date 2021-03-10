@@ -18,15 +18,15 @@ package org.lastaflute.meta.exception;
 /**
  * @author p1us2er0
  */
-public class LastaDocBaseException extends RuntimeException {
+public class LastaMetaIOException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
-    public LastaDocBaseException(String msg) {
+    public LastaMetaIOException(String msg) {
         super(msg);
     }
 
-    public LastaDocBaseException(String msg, Throwable cause) {
+    public LastaMetaIOException(String msg, Throwable cause) {
         super(msg, cause);
     }
 }

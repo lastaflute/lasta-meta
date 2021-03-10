@@ -65,7 +65,7 @@ public class SourceParserReflectorFactory {
             if (DfStringUtil.is_NotNull_and_NotEmpty(majorMinorVersionStr)) {
                 float majorMinorVersion = Float.parseFloat(majorMinorVersionStr);
                 if (majorMinorVersion < leastVersion) {
-                    String msg = "Upgrade javaparser-core version to (at least) " + JAVA_PARSER_VERSION + " for rich LastaDoc.";
+                    String msg = "Upgrade javaparser-core version to (at least) " + JAVA_PARSER_VERSION + " for rich lasta-meta.";
                     throw new PleaseUpgradeJavaParserVersion(msg);
                 }
             } else {
