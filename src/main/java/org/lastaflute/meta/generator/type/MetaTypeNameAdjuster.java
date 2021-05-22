@@ -35,9 +35,8 @@ public class MetaTypeNameAdjuster {
         return adjustTypeName(type.getTypeName());
     }
 
-    public String adjustTypeName(String typeName) {
-        // TODO jflute hearing, extension point? (2021/01/29)
-        return typeName;
+    public String adjustTypeName(String typeName) { // may be overridden
+        return typeName; // no filter as default
     }
 
     public String adjustSimpleTypeName(Type type) {
@@ -56,7 +55,6 @@ public class MetaTypeNameAdjuster {
     }
 
     public String adjustSimpleTypeName(String typeName) {
-        // TODO jflute hearing, for example? (2021/01/29)
-        return typeName.replaceAll("[a-z0-9]+\\.", "");
+        return typeName.replaceAll("[a-z0-9]+\\.", ""); // e.g. org.docksidestage.Sea => Sea
     }
 }

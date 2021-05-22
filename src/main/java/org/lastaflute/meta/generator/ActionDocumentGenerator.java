@@ -15,8 +15,6 @@
  */
 package org.lastaflute.meta.generator;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -25,15 +23,11 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
@@ -52,20 +45,15 @@ import org.dbflute.util.DfStringUtil;
 import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
 import org.lastaflute.core.util.ContainerUtil;
-import org.lastaflute.di.core.ComponentDef;
-import org.lastaflute.di.core.LaContainer;
-import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
+import org.lastaflute.meta.generator.action.ExecuteMethodCollector;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.meta.TypeDocMeta;
 import org.lastaflute.meta.reflector.SourceParserReflector;
 import org.lastaflute.meta.util.LaDocReflectionUtil;
-import org.lastaflute.web.Execute;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;
 import org.lastaflute.web.ruts.config.ActionExecute;
-import org.lastaflute.web.ruts.config.ModuleConfig;
 import org.lastaflute.web.ruts.multipart.MultipartFormFile;
-import org.lastaflute.web.util.LaModuleConfigUtil;
 
 import com.google.gson.FieldNamingPolicy;
 
@@ -121,33 +109,15 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     //                                                                            Generate
     //                                                                            ========
     public List<ActionDocMeta> generateActionDocMetaList() { // the list is per execute method
-        final List<String> actionComponentNameList = findActionComponentNameList();
-        final List<ActionDocMeta> metaList = DfCollectionUtil.newArrayList();
-        final ModuleConfig moduleConfig = LaModuleConfigUtil.getModuleConfig();
-        actionComponentNameList.forEach(componentName -> { // per action class
-            moduleConfig.findActionMapping(componentName).alwaysPresent(actionMapping -> {
-                final Class<?> actionClass = actionMapping.getActionDef().getComponentClass();
-                final List<Method> methodList = DfCollectionUtil.newArrayList();
-                sourceParserReflector.ifPresent(sourceParserReflector -> {
-                    methodList.addAll(sourceParserReflector.getMethodListOrderByDefinition(actionClass));
-                });
-                if (methodList.isEmpty()) { // no java parser, use normal reflection
-                    methodList.addAll(Arrays.stream(actionClass.getMethods()).sorted(Comparator.comparing(method -> {
-                        return method.getName();
-                    })).collect(Collectors.toList()));
-                }
-                methodList.forEach(method -> { // contains all methods
-                    if (method.getAnnotation(Execute.class) != null) { // only execute method here
-                        final ActionExecute actionExecute = actionMapping.getActionExecute(method);
-                        if (actionExecute != null && !exceptsActionExecute(actionExecute)) {
-                            final ActionDocMeta actionDocMeta = createActionDocMeta(actionExecute);
-                            metaList.add(actionDocMeta);
-                        }
-                    }
-                });
-            });
+        return createExecuteMethodCollector().collectActionExecuteList().stream().map(execute -> {
+            return createActionDocMeta(execute);
+        }).collect(Collectors.toList());
+    }
+
+    protected ExecuteMethodCollector createExecuteMethodCollector() {
+        return new ExecuteMethodCollector(srcDirList, sourceParserReflector, execute -> {
+            return exceptsActionExecute(execute);
         });
-        return metaList;
     }
 
     protected boolean exceptsActionExecute(ActionExecute actionExecute) { // may be overridden
@@ -616,56 +586,10 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
     }
 
     // ===================================================================================
-    //                                                                        DI Container
-    //                                                                        ============
-    protected List<String> findActionComponentNameList() {
-        final List<String> componentNameList = DfCollectionUtil.newArrayList();
-        final LaContainer container = getRootContainer();
-        srcDirList.stream().filter(srcDir -> Paths.get(srcDir).toFile().exists()).forEach(srcDir -> {
-            try (Stream<Path> stream = Files.find(Paths.get(srcDir), Integer.MAX_VALUE, (path, attr) -> {
-                return path.toString().endsWith("Action.java");
-            })) {
-                stream.sorted().map(path -> {
-                    final String className = extractActionClassName(path, srcDir);
-                    return DfReflectionUtil.forName(className);
-                }).filter(clazz -> !clazz.isInterface() && !Modifier.isAbstract(clazz.getModifiers())).forEach(clazz -> {
-                    final String componentName = container.getComponentDef(clazz).getComponentName();
-                    if (componentName != null && !componentNameList.contains(componentName)) {
-                        componentNameList.add(componentName);
-                    }
-                });
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to find the components: " + srcDir, e);
-            }
-        });
-        IntStream.range(0, container.getComponentDefSize()).forEach(index -> {
-            final ComponentDef componentDef = container.getComponentDef(index);
-            final String componentName = componentDef.getComponentName();
-            if (componentName.endsWith("Action") && !componentNameList.contains(componentName)) {
-                componentNameList.add(componentDef.getComponentName());
-            }
-        });
-        return componentNameList;
-    }
-
-    protected String extractActionClassName(Path path, String srcDir) { // for forName()
-        String className = DfStringUtil.substringFirstRear(path.toFile().getAbsolutePath(), new File(srcDir).getAbsolutePath());
-        if (className.startsWith(File.separator)) {
-            className = className.substring(1);
-        }
-        className = DfStringUtil.substringLastFront(className, ".java").replace(File.separatorChar, '.');
-        return className;
-    }
-
-    // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
     protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
         return new DocumentGeneratorFactory();
-    }
-
-    protected LaContainer getRootContainer() {
-        return SingletonLaContainerFactory.getContainer().getRoot();
     }
 
     protected ActionPathResolver getActionPathResolver() {
