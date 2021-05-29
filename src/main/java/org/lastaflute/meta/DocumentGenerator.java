@@ -23,7 +23,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.meta.agent.output.PhysicalOutputAgent;
+import org.lastaflute.meta.agent.MetaPhysicalAgent;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.generator.DocumentGeneratorFactory;
 import org.lastaflute.meta.generator.JobDocumentGenerator;
@@ -63,10 +63,10 @@ public class DocumentGenerator {
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
 
-    protected final PhysicalOutputAgent physicalOutputAgent = newPhysicalOutputAgent();
+    protected final MetaPhysicalAgent metaPhysicalAgent = newMetaPhysicalAgent();
 
-    protected PhysicalOutputAgent newPhysicalOutputAgent() {
-        return new PhysicalOutputAgent();
+    protected MetaPhysicalAgent newMetaPhysicalAgent() {
+        return new MetaPhysicalAgent();
     }
 
     // ===================================================================================
@@ -125,7 +125,7 @@ public class DocumentGenerator {
     public void saveLastaDocMeta() {
         final Map<String, Object> lastaMetaDetailMap = generateLastaDetailMap();
         final String json = createJsonEngine().toJson(lastaMetaDetailMap);
-        physicalOutputAgent.saveLastaDocMeta(json);
+        metaPhysicalAgent.saveLastaDocMeta(json);
     }
 
     protected Map<String, Object> generateLastaDetailMap() {

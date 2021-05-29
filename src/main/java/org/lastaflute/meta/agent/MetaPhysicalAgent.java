@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.agent.output;
+package org.lastaflute.meta.agent;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -27,7 +27,7 @@ import java.nio.file.Paths;
  * @author jflute
  * @since 0.5.1 (2021/05/29 Saturday at ronppongi japanese)
  */
-public class PhysicalOutputAgent { // precondition: current directory is project root
+public class MetaPhysicalAgent { // precondition: current directory is project root
 
     // ===================================================================================
     //                                                                           Save Meta
