@@ -27,17 +27,17 @@ import java.nio.file.Paths;
  * @author jflute
  * @since 0.5.1 (2021/05/29 Saturday at ronppongi japanese)
  */
-public class MetaPhysicalAgent { // precondition: current directory is project root
+public class OutputMetaAgent { // precondition: current directory is project root
 
     // ===================================================================================
     //                                                                           Save Meta
     //                                                                           =========
     public void saveLastaDocMeta(String json) {
-        doSaveOutputMeta(json, getOutputLastaDocJsonPath());
+        doSaveOutputMeta(json, getLastaDocJsonPath());
     }
 
     public void saveSwaggerMeta(String json) {
-        doSaveOutputMeta(json, getOutputSwaggerJsonPath());
+        doSaveOutputMeta(json, getSwaggerJsonPath());
     }
 
     protected void doSaveOutputMeta(String json, Path path) {
@@ -63,11 +63,11 @@ public class MetaPhysicalAgent { // precondition: current directory is project r
     // ===================================================================================
     //                                                                    Path Information
     //                                                                    ================
-    public Path getOutputLastaDocJsonPath() { // relative from project root
+    public Path getLastaDocJsonPath() { // relative from project root
         return Paths.get(getOutputMetaDir(), "analyzed-lastadoc.json");
     }
 
-    public Path getOutputSwaggerJsonPath() { // relative from project root
+    public Path getSwaggerJsonPath() { // relative from project root
         return Paths.get(getOutputMetaDir(), "swagger.json");
     }
 

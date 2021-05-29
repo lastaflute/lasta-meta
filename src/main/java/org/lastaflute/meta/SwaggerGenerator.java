@@ -61,7 +61,7 @@ import org.lastaflute.core.json.annotation.JsonDatePattern;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
-import org.lastaflute.meta.agent.MetaPhysicalAgent;
+import org.lastaflute.meta.agent.OutputMetaAgent;
 import org.lastaflute.meta.agent.maven.MavenVersionFinder;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
@@ -146,10 +146,10 @@ public class SwaggerGenerator {
     //                                                                           =========
     protected final DocumentGenerator documentGenerator = createDocumentGenerator();
 
-    protected final MetaPhysicalAgent metaPhysicalAgent = newMetaPhysicalAgent();
+    protected final OutputMetaAgent outputMetaAgent = newOutputMetaAgent();
 
-    protected MetaPhysicalAgent newMetaPhysicalAgent() {
-        return new MetaPhysicalAgent();
+    protected OutputMetaAgent newOutputMetaAgent() {
+        return new OutputMetaAgent();
     }
 
     // ===================================================================================
@@ -198,7 +198,7 @@ public class SwaggerGenerator {
     // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
         final String json = createJsonEngine().toJson(swaggerable.json().getJsonResult());
-        metaPhysicalAgent.saveSwaggerMeta(json);
+        outputMetaAgent.saveSwaggerMeta(json);
     }
 
     // ===================================================================================
