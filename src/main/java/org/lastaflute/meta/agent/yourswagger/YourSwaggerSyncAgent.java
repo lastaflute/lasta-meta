@@ -34,10 +34,10 @@ public class YourSwaggerSyncAgent {
     private static final Logger logger = LoggerFactory.getLogger(YourSwaggerSyncAgent.class);
 
     public void verifyYourSwaggerSync(String locationPath, Consumer<SwaggerDiffOption> opLambda) {
-        if (locationPath != null) {
+        if (locationPath == null) {
             throw new IllegalArgumentException("The argument 'locationPath' should not be null.");
         }
-        if (opLambda != null) {
+        if (opLambda == null) {
             throw new IllegalArgumentException("The argument 'opLambda' should not be null.");
         }
         logger.debug("...Verifying that your swagger.json is synchronized with source codes: path={}", locationPath);
