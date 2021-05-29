@@ -15,15 +15,61 @@
  */
 package org.lastaflute.meta.web;
 
+import java.io.InputStream;
 import java.util.Map;
 
+import org.dbflute.helper.filesystem.FileTextIO;
+import org.lastaflute.core.json.JsonEngineResource;
+import org.lastaflute.core.json.JsonManager;
+import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.web.response.JsonResponse;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.2.6 (2017/06/11 Sunday)
  */
 public interface LaActionSwaggerable {
 
+    /**
+     * Prepare JSON for e.g. SwaggerUI content. <br>
+     * Also used to save Lasta-presents swagger.json.
+     * <pre>
+     * &#064Execute
+     * public JsonResponse<Map<String, Object>> json() { // using Lasta-presents json
+     *     verifySwaggerAllowed();
+     *     Map&lt;String, Object&gt; swaggerMap = new SwaggerGenerator().generateSwaggerMap(op -&gt; {});
+     *     return asJson(swaggerMap).switchMappingOption(op -> {}); // not to depend on application settings
+     * }
+     * </pre>
+     * @return The JSON response as map from swagger.json. (NotNull)
+     */
     JsonResponse<Map<String, Object>> json();
+
+    /**
+     * Read swagger.json in classpath resource, basically for application swagger.json. <br>
+     * The swagger.json file should be UTF-8.
+     * <pre>
+     * &#064Execute
+     * public JsonResponse<Map<String, Object>> appjson() { // using application json
+     *     verifySwaggerAllowed();
+     *     Map&lt;String, Object&gt; swaggerMap = readResourceJson(jsonManager, "/swagger/your-swagger.json");
+     *     return asJson(swaggerMap).switchMappingOption(op -> {}); // not to depend on application settings
+     * }
+     * </pre>
+     * @param jsonManager The JSON manager of LastaFlute, to use new ruled engine. (NotNull)
+     * @param jsonResourcePath The resource path to swagger.json. (NotNull)
+     * @return The map from the swagger.json for SwaggerUI. (NotNull)
+     */
+    default Map<String, Object> readResourceJson(JsonManager jsonManager, String jsonResourcePath) {
+        final RealJsonEngine simpleEngine = jsonManager.newRuledEngine(new JsonEngineResource());
+        final InputStream ins = getClass().getClassLoader().getResourceAsStream(jsonResourcePath);
+        if (ins == null) {
+            throw new IllegalStateException("Not found the swagger JSON file: " + jsonResourcePath);
+        }
+        final String json = new FileTextIO().encodeAsUTF8().read(ins);
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> swaggerMap = simpleEngine.fromJson(json, Map.class);
+        return swaggerMap;
+    }
 }
