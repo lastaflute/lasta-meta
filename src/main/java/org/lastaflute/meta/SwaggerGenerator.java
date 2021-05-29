@@ -62,10 +62,10 @@ import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.meta.agent.maven.MavenVersionFinder;
-import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.generator.DocumentGeneratorFactory;
+import org.lastaflute.meta.generator.outputmeta.OutputMetaSerializer;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.meta.TypeDocMeta;
 import org.lastaflute.meta.web.LaActionSwaggerable;
@@ -146,10 +146,10 @@ public class SwaggerGenerator {
     //                                                                           =========
     protected final DocumentGenerator documentGenerator = createDocumentGenerator();
 
-    protected final OutputMetaAgent outputMetaAgent = newOutputMetaAgent();
+    protected final OutputMetaSerializer outputMetaSerializer = newOutputMetaSerializer();
 
-    protected OutputMetaAgent newOutputMetaAgent() {
-        return new OutputMetaAgent();
+    protected OutputMetaSerializer newOutputMetaSerializer() {
+        return new OutputMetaSerializer();
     }
 
     // ===================================================================================
@@ -198,7 +198,7 @@ public class SwaggerGenerator {
     // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
         final String json = createJsonEngine().toJson(swaggerable.json().getJsonResult());
-        outputMetaAgent.saveSwaggerMeta(json);
+        outputMetaSerializer.saveSwaggerMeta(json);
     }
 
     // ===================================================================================

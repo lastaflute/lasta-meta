@@ -15,13 +15,9 @@
  */
 package org.lastaflute.meta.agent.outputmeta;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+
+import org.lastaflute.meta.generator.outputmeta.OutputMetaPhysical;
 
 /**
  * @author jflute
@@ -30,51 +26,26 @@ import java.nio.file.Paths;
 public class OutputMetaAgent { // precondition: current directory is project root
 
     // ===================================================================================
-    //                                                                           Save Meta
+    //                                                                           Attribute
     //                                                                           =========
-    public void saveLastaDocMeta(String json) {
-        doSaveOutputMeta(json, getLastaDocJsonPath());
-    }
+    protected final OutputMetaPhysical analyzedMetaPhysical = newAnalyzedMetaPhysical();
 
-    public void saveSwaggerMeta(String json) {
-        doSaveOutputMeta(json, getSwaggerJsonPath());
-    }
-
-    protected void doSaveOutputMeta(String json, Path path) {
-        if (json == null) {
-            throw new IllegalArgumentException("The argument 'json' should not be null.");
-        }
-        final Path parentPath = path.getParent();
-        if (!Files.exists(parentPath)) {
-            try {
-                Files.createDirectories(parentPath);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create directory: " + parentPath, e);
-            }
-        }
-
-        try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
-            bw.write(json);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to write the json to the file: " + path, e);
-        }
+    protected OutputMetaPhysical newAnalyzedMetaPhysical() {
+        return new OutputMetaPhysical();
     }
 
     // ===================================================================================
     //                                                                    Path Information
     //                                                                    ================
     public Path getLastaDocJsonPath() { // relative from project root
-        return Paths.get(getOutputMetaDir(), "analyzed-lastadoc.json");
+        return analyzedMetaPhysical.getLastaDocJsonPath();
     }
 
     public Path getSwaggerJsonPath() { // relative from project root
-        return Paths.get(getOutputMetaDir(), "swagger.json");
+        return analyzedMetaPhysical.getSwaggerJsonPath();
     }
 
     public String getOutputMetaDir() { // precondition: current directory is project root
-        if (new File("./pom.xml").exists()) {
-            return "./target/lastadoc/";
-        }
-        return "./build/lastadoc/"; // for e.g. Gradle
+        return analyzedMetaPhysical.getOutputMetaDir();
     }
 }

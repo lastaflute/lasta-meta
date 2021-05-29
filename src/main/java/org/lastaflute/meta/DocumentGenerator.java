@@ -23,10 +23,10 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.generator.DocumentGeneratorFactory;
 import org.lastaflute.meta.generator.JobDocumentGenerator;
+import org.lastaflute.meta.generator.outputmeta.OutputMetaSerializer;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.reflector.SourceParserReflector;
 import org.lastaflute.meta.reflector.SourceParserReflectorFactory;
@@ -63,10 +63,10 @@ public class DocumentGenerator {
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
 
-    protected final OutputMetaAgent outputMetaAgent = newOutputMetaAgent();
+    protected final OutputMetaSerializer outputMetaSerializer = newOutputMetaSerializer();
 
-    protected OutputMetaAgent newOutputMetaAgent() {
-        return new OutputMetaAgent();
+    protected OutputMetaSerializer newOutputMetaSerializer() {
+        return new OutputMetaSerializer();
     }
 
     // ===================================================================================
@@ -125,7 +125,7 @@ public class DocumentGenerator {
     public void saveLastaDocMeta() {
         final Map<String, Object> lastaMetaDetailMap = generateLastaDetailMap();
         final String json = createJsonEngine().toJson(lastaMetaDetailMap);
-        outputMetaAgent.saveLastaDocMeta(json);
+        outputMetaSerializer.saveLastaDocMeta(json);
     }
 
     protected Map<String, Object> generateLastaDetailMap() {
