@@ -16,7 +16,6 @@
 package org.lastaflute.meta;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -24,11 +23,7 @@ import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -67,6 +62,7 @@ import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.meta.agent.maven.MavenVersionFinder;
+import org.lastaflute.meta.agent.output.PhysicalOutputAgent;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.generator.DocumentGeneratorFactory;
@@ -148,7 +144,13 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected DocumentGenerator documentGenerator = createDocumentGenerator();
+    protected final DocumentGenerator documentGenerator = createDocumentGenerator();
+
+    protected final PhysicalOutputAgent physicalOutputAgent = newPhysicalOutputAgent();
+
+    protected PhysicalOutputAgent newPhysicalOutputAgent() {
+        return new PhysicalOutputAgent();
+    }
 
     // ===================================================================================
     //                                                                            Generate
@@ -196,22 +198,7 @@ public class SwaggerGenerator {
     // basically called by unit test
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) {
         final String json = createJsonEngine().toJson(swaggerable.json().getJsonResult());
-
-        final Path path = Paths.get(getLastaMetaDir(), "swagger.json");
-        final Path parentPath = path.getParent();
-        if (!Files.exists(parentPath)) {
-            try {
-                Files.createDirectories(parentPath);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create directory: " + parentPath, e);
-            }
-        }
-
-        try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
-            bw.write(json);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to write the json to the file: " + path, e);
-        }
+        physicalOutputAgent.saveSwaggerMeta(json);
     }
 
     // ===================================================================================
@@ -409,8 +396,7 @@ public class SwaggerGenerator {
     //
     protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
             , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
-            , List<Map<String, Object>> swaggerTagList,
-            SwaggerOption swaggerOption) { // top-level tags
+            , List<Map<String, Object>> swaggerTagList, SwaggerOption swaggerOption) { // top-level tags
         createActionDocumentGenerator().generateActionDocMetaList().stream().forEach(actiondocMeta -> {
             doSetupSwaggerPathMap(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList, actiondocMeta, swaggerOption);
         });
@@ -626,11 +612,11 @@ public class SwaggerGenerator {
     protected String extractHttpMethod(ActionDocMeta actionDocMeta, SwaggerOption swaggerOption) {
         final Matcher matcher = HTTP_METHOD_PATTERN.matcher(actionDocMeta.getMethodName());
         if (matcher.find()) {
-        	return matcher.group(1);
+            return matcher.group(1);
         }
         if (actionDocMeta.getFormTypeDocMeta() != null && !actionDocMeta.getFormTypeDocMeta().getTypeName().endsWith("Form")) {
-        	return "post";
-    	}
+            return "post";
+        }
         return swaggerOption.getDefaultFormHttpMethod().apply(actionDocMeta);
     }
 
@@ -1100,10 +1086,6 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected String getLastaMetaDir() {
-        return createDocumentGeneratorFactory().getLastaMetaDir();
-    }
-
     protected AccessibleConfig getAccessibleConfig() {
         return ContainerUtil.getComponent(AccessibleConfig.class);
     }

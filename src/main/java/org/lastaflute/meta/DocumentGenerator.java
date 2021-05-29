@@ -15,13 +15,7 @@
  */
 package org.lastaflute.meta;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +23,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.engine.RealJsonEngine;
+import org.lastaflute.meta.agent.output.PhysicalOutputAgent;
 import org.lastaflute.meta.generator.ActionDocumentGenerator;
 import org.lastaflute.meta.generator.DocumentGeneratorFactory;
 import org.lastaflute.meta.generator.JobDocumentGenerator;
@@ -68,19 +63,30 @@ public class DocumentGenerator {
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
 
+    protected final PhysicalOutputAgent physicalOutputAgent = newPhysicalOutputAgent();
+
+    protected PhysicalOutputAgent newPhysicalOutputAgent() {
+        return new PhysicalOutputAgent();
+    }
+
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
     public DocumentGenerator() {
-        this.srcDirList = DfCollectionUtil.newArrayList();
-        this.srcDirList.add(SRC_DIR);
-        final String commonDir =
-                "../" + new File(".").getAbsoluteFile().getParentFile().getName().replaceAll("-.*", "-common") + "/" + SRC_DIR;
-        if (new File(commonDir).exists()) {
-            this.srcDirList.add(commonDir);
-        }
+        this.srcDirList = prepareDefaultSrcDirList();
         this.depth = DEPTH;
         this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
+    }
+
+    protected List<String> prepareDefaultSrcDirList() {
+        final List<String> srcDirList = DfCollectionUtil.newArrayList();
+        srcDirList.add(SRC_DIR);
+        final String projectDirName = new File(".").getAbsoluteFile().getParentFile().getName();
+        final String commonDir = "../" + projectDirName.replaceAll("-.*", "-common") + "/" + SRC_DIR;
+        if (new File(commonDir).exists()) {
+            srcDirList.add(commonDir);
+        }
+        return srcDirList;
     }
 
     public DocumentGenerator(List<String> srcDirList) {
@@ -116,37 +122,13 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                         Action Meta
     //                                                                         ===========
-    public void saveLastaMeta() {
-        final Map<String, Object> lastaMetaDetailMap = generateLastaetailMap();
-        final String json = createJsonEngine().toJson(lastaMetaDetailMap);
-
-        final Path path = Paths.get(getLastaMetaDir(), "analyzed-lastadoc.json");
-        final Path parentPath = path.getParent();
-        if (!Files.exists(parentPath)) {
-            try {
-                Files.createDirectories(parentPath);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create directory: " + parentPath, e);
-            }
-        }
-
-        try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
-            bw.write(json);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to write the json to the file: " + path, e);
-        }
-    }
-
-    /**
-     * @deprecated
-     * @see DocumentGenerator#saveLastaDocMeta()
-     */
-    @Deprecated
     public void saveLastaDocMeta() {
-    	this.saveLastaMeta();
+        final Map<String, Object> lastaMetaDetailMap = generateLastaDetailMap();
+        final String json = createJsonEngine().toJson(lastaMetaDetailMap);
+        physicalOutputAgent.saveLastaDocMeta(json);
     }
 
-    protected Map<String, Object> generateLastaetailMap() {
+    protected Map<String, Object> generateLastaDetailMap() {
         final List<ActionDocMeta> actionDocMetaList = createActionDocumentGenerator().generateActionDocMetaList();
         final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
         lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
@@ -170,12 +152,8 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected String getLastaMetaDir() {
-        return createDocumentGeneratorFactory().getLastaMetaDir();
-    }
-
     public RealJsonEngine createJsonEngine() {
-            return createDocumentGeneratorFactory().createJsonEngine();
+        return createDocumentGeneratorFactory().createJsonEngine();
     }
 
     public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {

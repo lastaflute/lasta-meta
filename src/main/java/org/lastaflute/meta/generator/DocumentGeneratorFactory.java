@@ -15,7 +15,6 @@
  */
 package org.lastaflute.meta.generator;
 
-import java.io.File;
 import java.util.List;
 
 import org.dbflute.optional.OptionalThing;
@@ -33,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.6.9 (2075/03/05 Sunday)
  */
 public class DocumentGeneratorFactory {
@@ -43,6 +43,9 @@ public class DocumentGeneratorFactory {
     private static final Logger _log = LoggerFactory.getLogger(DocumentGeneratorFactory.class);
     private static final String JOB_MANAGER_CLASS_NAME = "org.lastaflute.job.JobManager";
 
+    // ===================================================================================
+    //                                                                            Document
+    //                                                                            ========
     public ActionDocumentGenerator createActionDocumentGenerator(List<String> srcDirList, int depth,
             OptionalThing<SourceParserReflector> sourceParserReflector) {
         return new ActionDocumentGenerator(srcDirList, depth, sourceParserReflector);
@@ -65,13 +68,9 @@ public class DocumentGeneratorFactory {
         });
     }
 
-    public String getLastaMetaDir() {
-        if (new File("./pom.xml").exists()) {
-            return "./target/lastadoc/";
-        }
-        return "./build/lastadoc/";
-    }
-
+    // ===================================================================================
+    //                                                                         JSON Engine
+    //                                                                         ===========
     public RealJsonEngine createJsonEngine() {
         return new GsonJsonEngine(builder -> {
             builder.serializeNulls().setPrettyPrinting();
