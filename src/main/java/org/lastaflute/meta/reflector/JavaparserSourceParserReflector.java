@@ -15,18 +15,14 @@
  */
 package org.lastaflute.meta.reflector;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.dbflute.optional.OptionalThing;
@@ -35,9 +31,9 @@ import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.meta.JobDocMeta;
 import org.lastaflute.meta.meta.TypeDocMeta;
+import org.lastaflute.meta.reflector.parsing.JavaparserSourceMethodHandler;
+import org.lastaflute.meta.reflector.parsing.JavaparserSourceTypeHandler;
 
-import com.github.javaparser.JavaParser;
-import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
@@ -64,17 +60,23 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** src dir list. (NotNull) */
-    protected final List<String> srcDirList;
-
-    /** cacheCompilationUnitMap. (NotNull) */
-    protected final static Map<String, CacheCompilationUnit> CACHE_COMPILATION_UNIT_MAP = DfCollectionUtil.newHashMap();
+    protected final JavaparserSourceTypeHandler sourceTypeHandler; // not null, has srcDirList
+    protected final JavaparserSourceMethodHandler sourceMethodHandler; // not null
 
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
     public JavaparserSourceParserReflector(List<String> srcDirList) {
-        this.srcDirList = srcDirList;
+        this.sourceTypeHandler = newJavaparserSourceTypeHandler(srcDirList);
+        this.sourceMethodHandler = newJavaparserSourceMethodHandler(this.sourceTypeHandler);
+    }
+
+    protected JavaparserSourceTypeHandler newJavaparserSourceTypeHandler(List<String> srcDirList) {
+        return new JavaparserSourceTypeHandler(srcDirList);
+    }
+
+    protected JavaparserSourceMethodHandler newJavaparserSourceMethodHandler(JavaparserSourceTypeHandler sourceTypeHandler) {
+        return new JavaparserSourceMethodHandler(sourceTypeHandler);
     }
 
     // ===================================================================================
@@ -82,22 +84,7 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         ===========
     @Override
     public List<Method> getMethodListOrderByDefinition(Class<?> clazz) {
-        List<String> methodDeclarationList = DfCollectionUtil.newArrayList();
-        parseClass(clazz).ifPresent(compilationUnit -> {
-            VoidVisitorAdapter<Void> adapter = new VoidVisitorAdapter<Void>() {
-                public void visit(final MethodDeclaration methodDeclaration, final Void arg) {
-                    methodDeclarationList.add(methodDeclaration.getNameAsString());
-                    super.visit(methodDeclaration, arg);
-                }
-            };
-            adapter.visit(compilationUnit, null);
-        });
-
-        List<Method> methodList = Arrays.stream(clazz.getMethods()).sorted(Comparator.comparing(method -> {
-            return methodDeclarationList.indexOf(method.getName());
-        })).collect(Collectors.toList());
-
-        return methodList;
+        return sourceMethodHandler.getMethodListOrderByDefinition(clazz);
     }
 
     // ===================================================================================
@@ -310,7 +297,7 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     public class TypeDocMetaVisitorAdapter extends VoidVisitorAdapter<TypeDocMeta> {
 
         private Class<?> clazz;
-        
+
         public TypeDocMetaVisitorAdapter(Class<?> clazz) {
             this.clazz = clazz;
         }
@@ -345,12 +332,11 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
             if (fieldDeclaration.getVariables().stream().anyMatch(variable -> variable.getNameAsString().equals(typeDocMeta.getName()))) {
                 String comment = adjustComment(fieldDeclaration);
                 if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                    if (DfStringUtil.is_Null_or_Empty(typeDocMeta.getComment())
-                            || fieldDeclaration.getParentNode().map(parentNode -> {
-                                @SuppressWarnings("unchecked")
-                                TypeDeclaration<TypeDeclaration<?>> typeDeclaration = (TypeDeclaration<TypeDeclaration<?>>) parentNode;
-                                return typeDeclaration.getNameAsString().equals(clazz.getSimpleName());
-                            }).orElse(false)) {
+                    if (DfStringUtil.is_Null_or_Empty(typeDocMeta.getComment()) || fieldDeclaration.getParentNode().map(parentNode -> {
+                        @SuppressWarnings("unchecked")
+                        TypeDeclaration<TypeDeclaration<?>> typeDeclaration = (TypeDeclaration<TypeDeclaration<?>>) parentNode;
+                        return typeDeclaration.getNameAsString().equals(clazz.getSimpleName());
+                    }).orElse(false)) {
                         typeDocMeta.setComment(comment);
                         Matcher matcher = FIELD_COMMENT_END_PATTERN.matcher(saveFieldCommentSpecialExp(comment));
                         if (matcher.find()) {
@@ -386,55 +372,6 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         Parse Class
     //                                                                         ===========
     protected OptionalThing<CompilationUnit> parseClass(Class<?> clazz) {
-        JavaParser javaParser = new JavaParser();
-        for (String srcDir : srcDirList) {
-            File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
-            if (!file.exists()) {
-                file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
-                if (!file.exists()) {
-                    continue;
-                }
-            }
-            if (CACHE_COMPILATION_UNIT_MAP.containsKey(clazz.getName())) {
-                CacheCompilationUnit cacheCompilationUnit = CACHE_COMPILATION_UNIT_MAP.get(clazz.getName());
-                if (cacheCompilationUnit != null && cacheCompilationUnit.fileLastModified == file.lastModified()
-                        && cacheCompilationUnit.fileLength == file.length()) {
-                    return OptionalThing.of(cacheCompilationUnit.compilationUnit);
-                }
-            }
-
-            CacheCompilationUnit cacheCompilationUnit = new CacheCompilationUnit();
-            cacheCompilationUnit.fileLastModified = file.lastModified();
-            cacheCompilationUnit.fileLength = file.length();
-            try {
-                ParseResult<CompilationUnit> parse = javaParser.parse(file);
-                parse.getResult().ifPresent(compilationUnit -> {
-                    cacheCompilationUnit.compilationUnit = compilationUnit;                    
-                });
-            } catch (FileNotFoundException e) {
-                throw new IllegalStateException("Source file don't exist.");
-            }
-
-            CACHE_COMPILATION_UNIT_MAP.put(clazz.getName(), cacheCompilationUnit);
-            return OptionalThing.of(cacheCompilationUnit.compilationUnit);
-        }
-        return OptionalThing.ofNullable(null, () -> {
-            throw new IllegalStateException("Source file don't exist.");
-        });
-    }
-
-    /**
-     * @author p1us2er0
-     */
-    private static class CacheCompilationUnit {
-
-        /** file last modified. */
-        private long fileLastModified;
-
-        /** file length. */
-        private long fileLength;
-
-        /** compilation unit. */
-        private CompilationUnit compilationUnit;
+        return sourceTypeHandler.parseClass(clazz);
     }
 }
