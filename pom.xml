@@ -226,13 +226,15 @@
 		<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
 		<!--															   Partner Library -->
 		<!--															   = = = = = = = = -->
-		<!-- javaparser -->
+		<!-- javaparser:
+		 not optional because javadoc info is very useful if it uses swagger (and small dependencies) -->
 		<dependency>
 			<groupId>com.github.javaparser</groupId>
 			<artifactId>javaparser-core</artifactId>
 			<version>${javaparser.version}</version>
 		</dependency>
-		<!-- openapidiff -->
+		<!-- openapidiff:
+		 optional because diff function is for rare requirement (and large dependencies) -->
 		<dependency>
 			<groupId>org.openapitools.openapidiff</groupId>
 			<artifactId>openapi-diff-core</artifactId>
