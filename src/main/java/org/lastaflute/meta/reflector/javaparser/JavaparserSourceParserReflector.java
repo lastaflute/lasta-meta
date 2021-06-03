@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.reflector;
+package org.lastaflute.meta.reflector.javaparser;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.IntStream;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
@@ -31,8 +30,11 @@ import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.meta.JobDocMeta;
 import org.lastaflute.meta.meta.TypeDocMeta;
-import org.lastaflute.meta.reflector.parsing.JavaparserSourceMethodHandler;
-import org.lastaflute.meta.reflector.parsing.JavaparserSourceTypeHandler;
+import org.lastaflute.meta.reflector.SourceParserReflector;
+import org.lastaflute.meta.reflector.javaparser.assist.JavaparserMethodIdentityDeterminer;
+import org.lastaflute.meta.reflector.javaparser.parsing.JavaparserSourceMethodHandler;
+import org.lastaflute.meta.reflector.javaparser.parsing.JavaparserSourceTypeHandler;
+import org.lastaflute.meta.reflector.javaparser.visiting.JavaparserActionDocMetaVisitorAdapter;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -40,7 +42,6 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithJavadoc;
-import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
 /**
@@ -55,11 +56,11 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                          ==========
     protected static final Pattern CLASS_METHOD_COMMENT_END_PATTERN = Pattern.compile("(.+)[.。]?.*(\r?\n)?");
     protected static final Pattern FIELD_COMMENT_END_PATTERN = Pattern.compile("([^.。\\*]+).* ?\\*?");
-    protected static final Pattern RETURN_STMT_PATTERN = Pattern.compile("^[^)]+\\)");
 
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    protected final JavaparserMethodIdentityDeterminer methodIdentityDeterminer; // not null
     protected final JavaparserSourceTypeHandler sourceTypeHandler; // not null, has srcDirList
     protected final JavaparserSourceMethodHandler sourceMethodHandler; // not null
 
@@ -67,16 +68,22 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                         Constructor
     //                                                                         ===========
     public JavaparserSourceParserReflector(List<String> srcDirList) {
+        this.methodIdentityDeterminer = newJavaparserMethodIdentityDeterminer();
         this.sourceTypeHandler = newJavaparserSourceTypeHandler(srcDirList);
-        this.sourceMethodHandler = newJavaparserSourceMethodHandler(this.sourceTypeHandler);
+        this.sourceMethodHandler = newJavaparserSourceMethodHandler(this.sourceTypeHandler, this.methodIdentityDeterminer);
+    }
+
+    protected JavaparserMethodIdentityDeterminer newJavaparserMethodIdentityDeterminer() {
+        return new JavaparserMethodIdentityDeterminer();
     }
 
     protected JavaparserSourceTypeHandler newJavaparserSourceTypeHandler(List<String> srcDirList) {
         return new JavaparserSourceTypeHandler(srcDirList);
     }
 
-    protected JavaparserSourceMethodHandler newJavaparserSourceMethodHandler(JavaparserSourceTypeHandler sourceTypeHandler) {
-        return new JavaparserSourceMethodHandler(sourceTypeHandler);
+    protected JavaparserSourceMethodHandler newJavaparserSourceMethodHandler(JavaparserSourceTypeHandler sourceTypeHandler,
+            JavaparserMethodIdentityDeterminer methodIdentityDeterminer) {
+        return new JavaparserSourceMethodHandler(sourceTypeHandler, methodIdentityDeterminer);
     }
 
     // ===================================================================================
@@ -125,86 +132,9 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     }
 
     protected VoidVisitorAdapter<ActionDocMeta> createActionDocMetaVisitorAdapter(Method method, Map<String, List<String>> returnMap) {
-        return new ActionDocMetaVisitorAdapter(method, returnMap);
-    }
-
-    public class ActionDocMetaVisitorAdapter extends VoidVisitorAdapter<ActionDocMeta> {
-
-        protected final Method method;
-        protected final Map<String, List<String>> returnMap;
-
-        public ActionDocMetaVisitorAdapter(Method method, Map<String, List<String>> returnMap) {
-            this.method = method;
-            this.returnMap = returnMap;
-        }
-
-        @Override
-        public void visit(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, ActionDocMeta actionDocMeta) {
-            classOrInterfaceDeclaration.getBegin().ifPresent(begin -> {
-                classOrInterfaceDeclaration.getEnd().ifPresent(end -> {
-                    actionDocMeta.setFileLineCount(end.line - begin.line);
-                });
-            });
-            String comment = adjustComment(classOrInterfaceDeclaration);
-            if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                actionDocMeta.setTypeComment(comment);
-            }
-            super.visit(classOrInterfaceDeclaration, actionDocMeta);
-        }
-
-        @Override
-        public void visit(MethodDeclaration methodDeclaration, ActionDocMeta actionDocMeta) {
-            if (!methodDeclaration.getNameAsString().equals(method.getName())) {
-                return;
-            }
-
-            methodDeclaration.getBegin().ifPresent(begin -> {
-                methodDeclaration.getEnd().ifPresent(end -> {
-                    actionDocMeta.setMethodLineCount(end.line - begin.line);
-                });
-            });
-            String comment = adjustComment(methodDeclaration);
-            if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                actionDocMeta.setMethodComment(comment);
-            }
-            IntStream.range(0, actionDocMeta.getParameterTypeDocMetaList().size()).forEach(parameterIndex -> {
-                if (parameterIndex < methodDeclaration.getParameters().size()) {
-                    TypeDocMeta typeDocMeta = actionDocMeta.getParameterTypeDocMetaList().get(parameterIndex);
-                    com.github.javaparser.ast.body.Parameter parameter = methodDeclaration.getParameters().get(parameterIndex);
-                    typeDocMeta.setName(parameter.getNameAsString());
-                    typeDocMeta.setPublicName(parameter.getNameAsString());
-                    if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                        // parse parameter comment
-                        Pattern pattern = Pattern.compile(".*@param\\s?" + parameter.getNameAsString() + "\\s?(.*)\r?\n.*", Pattern.DOTALL);
-                        Matcher matcher = pattern.matcher(comment);
-                        if (matcher.matches()) {
-                            typeDocMeta.setComment(matcher.group(1).replaceAll("\r?\n.*", ""));
-                            typeDocMeta.setDescription(typeDocMeta.getComment().replaceAll(" ([^\\p{Alnum}]|e\\.g\\. )+.*", ""));
-                        }
-                    }
-                }
-            });
-
-            methodDeclaration.accept(new VoidVisitorAdapter<ActionDocMeta>() {
-                @Override
-                public void visit(ReturnStmt returnStmt, ActionDocMeta actionDocMeta) {
-                    prepareReturnStmt(methodDeclaration, returnStmt);
-                    super.visit(returnStmt, actionDocMeta);
-                }
-            }, actionDocMeta);
-            super.visit(methodDeclaration, actionDocMeta);
-        }
-
-        protected void prepareReturnStmt(MethodDeclaration methodDeclaration, ReturnStmt returnStmt) {
-            returnStmt.getExpression().ifPresent(expression -> {
-                String returnStmtStr = expression.toString();
-                Matcher matcher = RETURN_STMT_PATTERN.matcher(returnStmtStr);
-                if (!returnMap.containsKey(methodDeclaration.getNameAsString())) {
-                    returnMap.put(methodDeclaration.getNameAsString(), DfCollectionUtil.newArrayList());
-                }
-                returnMap.get(methodDeclaration.getNameAsString()).add(matcher.find() ? matcher.group(0) : "##unanalyzable##");
-            });
-        }
+        return new JavaparserActionDocMetaVisitorAdapter(method, returnMap, nodeWithJavadoc -> {
+            return adjustComment(nodeWithJavadoc);
+        }, methodIdentityDeterminer);
     }
 
     // ===================================================================================

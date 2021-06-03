@@ -186,9 +186,7 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         Arrays.stream(executeMethod.getParameters()).filter(parameter -> {
             return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getSymbolFormType().equals(parameter.getType()));
         }).forEach(parameter -> { // except form parameter here
-            final StringBuilder builder = new StringBuilder();
-            builder.append("{").append(parameter.getName()).append("}");
-            actionDocMeta.setUrl(actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString()));
+            actionDocMeta.setUrl(buildNewActionUrl(actionDocMeta, parameter));
             parameterTypeDocMetaList.add(analyzeMethodParameter(parameter));
         });
         actionDocMeta.setParameterTypeDocMetaList(parameterTypeDocMetaList);
@@ -203,6 +201,12 @@ public class ActionDocumentGenerator extends BaseDocumentGenerator {
         });
 
         return actionDocMeta;
+    }
+
+    protected String buildNewActionUrl(ActionDocMeta actionDocMeta, Parameter parameter) {
+        final StringBuilder builder = new StringBuilder();
+        builder.append("{").append(parameter.getName()).append("}");
+        return actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString());
     }
 
     // ===================================================================================

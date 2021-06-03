@@ -13,15 +13,15 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.reflector.parsing;
+package org.lastaflute.meta.reflector.javaparser.parsing;
 
 import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfCollectionUtil.AccordingToOrderResource;
+import org.lastaflute.meta.reflector.javaparser.assist.JavaparserMethodIdentityDeterminer;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
@@ -37,12 +37,15 @@ public class JavaparserSourceMethodHandler {
     //                                                                           Attribute
     //                                                                           =========
     protected final JavaparserSourceTypeHandler sourceTypeHandler; // not null
+    protected final JavaparserMethodIdentityDeterminer methodIdentityDeterminer; // not null
 
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public JavaparserSourceMethodHandler(JavaparserSourceTypeHandler sourceTypeHandler) {
+    public JavaparserSourceMethodHandler(JavaparserSourceTypeHandler sourceTypeHandler,
+            JavaparserMethodIdentityDeterminer methodIdentityDeterminer) {
         this.sourceTypeHandler = sourceTypeHandler;
+        this.methodIdentityDeterminer = methodIdentityDeterminer;
     }
 
     // ===================================================================================
@@ -68,19 +71,11 @@ public class JavaparserSourceMethodHandler {
     }
 
     protected String buildMethodIdentityNative(Method method) { // e.g. get$index(ProductsSearchForm)
-        final String methodName = method.getName();
-        final String paramExp = Stream.of(method.getParameters()).map(pr -> pr.getType().getSimpleName()).collect(Collectors.joining(","));
-        return doBuildMethodIdentity(methodName, paramExp);
+        return methodIdentityDeterminer.buildMethodIdentityNative(method);
     }
 
     protected String buildMethodIdentitySource(MethodDeclaration dec) { // e.g. get$index(ProductsSearchForm)
-        final String methodName = dec.getNameAsString();
-        final String paramExp = dec.getParameters().stream().map(pr -> pr.getType().toString()).collect(Collectors.joining(","));
-        return doBuildMethodIdentity(methodName, paramExp);
-    }
-
-    protected String doBuildMethodIdentity(String methodName, String paramExp) {
-        return methodName + "(" + paramExp + ")";
+        return methodIdentityDeterminer.buildMethodIdentitySource(dec);
     }
 
     // ===================================================================================
