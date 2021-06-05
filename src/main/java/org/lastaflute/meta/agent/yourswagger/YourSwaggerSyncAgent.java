@@ -26,10 +26,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * The agent for synchronization of your swagger.json with Lasta-presents swagger.json. <br>
+ * It depends SwaggerDiff classes so you need to set the "openapi-diff-core" library at your build settings.
  * @author jflute
  * @since 0.5.1 (2021/05/29 Saturday at ronppongi japanese)
  */
-public class YourSwaggerSyncAgent {
+public class YourSwaggerSyncAgent { // used by e.g. UTFlute
 
     private static final Logger logger = LoggerFactory.getLogger(YourSwaggerSyncAgent.class);
 

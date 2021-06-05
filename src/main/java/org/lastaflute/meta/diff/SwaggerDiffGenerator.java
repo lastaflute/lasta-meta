@@ -37,7 +37,9 @@ import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.oas.models.OpenAPI;
 
 /**
+ * You need to set the "openapi-diff-core" library at your build settings.
  * @author p1us2er0
+ * @author jflute
  */
 public class SwaggerDiffGenerator {
 
