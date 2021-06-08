@@ -13,15 +13,15 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.reflector;
+package org.lastaflute.meta.sourceparser;
 
 import java.util.List;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
-import org.lastaflute.meta.agent.maven.MavenVersionFinder;
-import org.lastaflute.meta.reflector.javaparser.JavaparserSourceParserReflector;
+import org.lastaflute.meta.infra.MavenVersionFinder;
+import org.lastaflute.meta.sourceparser.javaparser.JavaparserSourceParserReflector;
 import org.dbflute.util.DfStringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -48,7 +48,7 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.meta.generator.action.ExecuteMethodCollector;
 import org.lastaflute.meta.meta.ActionDocMeta;
 import org.lastaflute.meta.meta.TypeDocMeta;
-import org.lastaflute.meta.reflector.SourceParserReflector;
+import org.lastaflute.meta.sourceparser.SourceParserReflector;
 import org.lastaflute.meta.util.LaDocReflectionUtil;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;

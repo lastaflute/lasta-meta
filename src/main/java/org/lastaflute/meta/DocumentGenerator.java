@@ -28,8 +28,8 @@ import org.lastaflute.meta.generator.DocumentGeneratorFactory;
 import org.lastaflute.meta.generator.JobDocumentGenerator;
 import org.lastaflute.meta.generator.outputmeta.OutputMetaSerializer;
 import org.lastaflute.meta.meta.ActionDocMeta;
-import org.lastaflute.meta.reflector.SourceParserReflector;
-import org.lastaflute.meta.reflector.SourceParserReflectorFactory;
+import org.lastaflute.meta.sourceparser.SourceParserReflector;
+import org.lastaflute.meta.sourceparser.SourceParserReflectorFactory;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**

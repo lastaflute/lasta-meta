@@ -1,4 +1,4 @@
-package org.lastaflute.meta.diff.render;
+package org.lastaflute.meta.swagger.diff.render;
 
 import java.util.LinkedHashMap;
 import java.util.List;

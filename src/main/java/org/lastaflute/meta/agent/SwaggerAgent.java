@@ -16,7 +16,7 @@
 package org.lastaflute.meta.agent;
 
 import org.dbflute.optional.OptionalThing;
-import org.lastaflute.meta.agent.maven.MavenVersionFinder;
+import org.lastaflute.meta.infra.MavenVersionFinder;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.servlet.request.RequestManager;
 
@@ -25,7 +25,7 @@ import org.lastaflute.web.servlet.request.RequestManager;
  * @author jflute
  * @since 0.2.3 (2017/04/20 Thursday)
  */
-public class SwaggerAgent {
+public class SwaggerAgent { // means SwaggerUIAgent
 
     protected final RequestManager requestManager;
 

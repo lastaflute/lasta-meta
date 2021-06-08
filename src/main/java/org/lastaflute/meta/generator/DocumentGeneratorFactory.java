@@ -26,7 +26,7 @@ import org.lastaflute.core.json.SimpleJsonManager;
 import org.lastaflute.core.json.engine.GsonJsonEngine;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
-import org.lastaflute.meta.reflector.SourceParserReflector;
+import org.lastaflute.meta.sourceparser.SourceParserReflector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

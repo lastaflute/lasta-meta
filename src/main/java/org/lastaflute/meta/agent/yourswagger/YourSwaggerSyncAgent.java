@@ -19,9 +19,9 @@ import java.util.function.Consumer;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
-import org.lastaflute.meta.diff.SwaggerDiff;
-import org.lastaflute.meta.diff.SwaggerDiffOption;
 import org.lastaflute.meta.exception.YourSwaggerDiffException;
+import org.lastaflute.meta.swagger.diff.SwaggerDiff;
+import org.lastaflute.meta.swagger.diff.SwaggerDiffOption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
