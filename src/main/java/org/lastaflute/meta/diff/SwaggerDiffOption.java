@@ -39,82 +39,84 @@ public class SwaggerDiffOption {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-	protected Charset charset = StandardCharsets.UTF_8;
-	protected Render render = new LastaMetaMarkdownRender();
-	protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
-	protected BiPredicate<String, String> targetNodeLambda = getDefaultTargetNode();
+    protected Charset charset = StandardCharsets.UTF_8;
+    protected Render render = new LastaMetaMarkdownRender();
+    protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
+    protected BiPredicate<String, String> targetNodeLambda = getDefaultTargetNode();
 
     // ===================================================================================
     //                                                                               Basic
     //                                                                               =====
-	public void setCharset(Charset charset) {
-		this.charset = charset;
-	}
+    public void setCharset(Charset charset) {
+        this.charset = charset;
+    }
 
-	public void setRender(Render render) {
-		this.render = render;
-	}
+    public void setRender(Render render) {
+        this.render = render;
+    }
 
-	public void derivedDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
-		this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
-	}
+    // TODO awaawa hope that Jackson class is closed, wrap the JsonNode by jflute (2021/06/08)
+    public void derivedDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
+        this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
+    }
 
-	public void derivedTargetNode(BiPredicate<String, String> targetNodeLambda) {
-		this.targetNodeLambda = targetNodeLambda;
-	}
+    public void derivedTargetNode(BiPredicate<String, String> targetNodeLambda) {
+        this.targetNodeLambda = targetNodeLambda;
+    }
 
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
-	public Charset getCharset() {
-		return this.charset;
-	}
+    public Charset getCharset() {
+        return this.charset;
+    }
 
-	public Render getRender() {
-		return this.render;
-	}
+    public Render getRender() {
+        return this.render;
+    }
 
-	public BiConsumer<String, JsonNode> getDiffAdjustmentNode() {
-		return this.diffAdjustmentNodeLambda;
-	}
+    public BiConsumer<String, JsonNode> getDiffAdjustmentNode() {
+        return this.diffAdjustmentNodeLambda;
+    }
 
-	public BiPredicate<String, String> getTargetNodeLambda() {
-		return this.targetNodeLambda;
-	}
+    public BiPredicate<String, String> getTargetNodeLambda() {
+        return this.targetNodeLambda;
+    }
 
     // ===================================================================================
     //                                                                     Diff Adjustment
     //                                                                     ===============
-	protected BiConsumer<String, JsonNode> getDefaultDiffAdjustmentNode() {
-		return (fieldName, node) -> {
-			if (node.isArray()) {
-				IntStream.range(0, node.size()).forEach(index -> {
-					this.getDefaultDiffAdjustmentNode().accept(fieldName, node.get(index));
-				});
-			} else if (node.isObject()) {
-				List<String> fieldNameList = new ArrayList<String>();
-				node.fieldNames().forEachRemaining(fieldNameList::add);
-				fieldNameList.forEach(name -> {
-					String path = DfStringUtil.isEmpty(fieldName) ? name : fieldName + "." + name;
-					if (this.getTargetNodeLambda().test(path, name)) {
-						this.getDefaultDiffAdjustmentNode().accept(path, node.get(name));
-					} else {
-						((ObjectNode) node).remove(name);						
-					}
-				});
-			}
-		};
-	}
+    // TODO awaawa hope that default logic is moved from here by jflute (2021/06/08)
+    protected BiConsumer<String, JsonNode> getDefaultDiffAdjustmentNode() {
+        return (fieldName, node) -> {
+            if (node.isArray()) {
+                IntStream.range(0, node.size()).forEach(index -> {
+                    this.getDefaultDiffAdjustmentNode().accept(fieldName, node.get(index));
+                });
+            } else if (node.isObject()) {
+                List<String> fieldNameList = new ArrayList<String>();
+                node.fieldNames().forEachRemaining(fieldNameList::add);
+                fieldNameList.forEach(name -> {
+                    String path = DfStringUtil.isEmpty(fieldName) ? name : fieldName + "." + name;
+                    if (this.getTargetNodeLambda().test(path, name)) {
+                        this.getDefaultDiffAdjustmentNode().accept(path, node.get(name));
+                    } else {
+                        ((ObjectNode) node).remove(name);
+                    }
+                });
+            }
+        };
+    }
 
-	protected BiPredicate<String, String> getDefaultTargetNode() {
-		return (path, name) -> {
-	        if (DfCollectionUtil.newArrayList("summary", "description", "examples").contains(name)) {
-	            return false;
-	        }
-	        if (path.matches(".+\\.responses\\.[^.]+$")) {
-	            return name.equals("200");
-	        }
-	        return true;
-	    };
-	}
+    protected BiPredicate<String, String> getDefaultTargetNode() {
+        return (path, name) -> {
+            if (DfCollectionUtil.newArrayList("summary", "description", "examples").contains(name)) {
+                return false;
+            }
+            if (path.matches(".+\\.responses\\.[^.]+$")) {
+                return name.equals("200");
+            }
+            return true;
+        };
+    }
 }

@@ -22,11 +22,11 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
-import java.net.URLDecoder;
 import java.util.function.Consumer;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.util.DfResourceUtil;
+import org.dbflute.util.Srl;
 import org.lastaflute.meta.exception.LastaMetaIOException;
 import org.openapitools.openapidiff.core.OpenApiCompare;
 import org.openapitools.openapidiff.core.model.ChangedOpenApi;
@@ -152,12 +152,15 @@ public class SwaggerDiffGenerator {
     }
 
     protected String decodeContent(String swaggerContent, String encoding) throws UnsupportedEncodingException {
-        try {
-            return URLDecoder.decode(swaggerContent, encoding);
-        } catch (RuntimeException e) {
-            String msg = "Failed to decode the swagger content: encoding=" + encoding + ", content=" + swaggerContent;
-            throw new IllegalStateException(msg, e);
-        }
+        // TODO awaawa fix later, about '%24' problem by jflute (2021/06/08)
+        return Srl.replace(swaggerContent, "%24", "$");
+        // old code: failed by regular expression keyword e.g. '%&'
+        //try {
+        //    return URLDecoder.decode(swaggerContent, encoding);
+        //} catch (RuntimeException e) {
+        //    String msg = "Failed to decode the swagger content: encoding=" + encoding + ", content=" + swaggerContent;
+        //    throw new IllegalStateException(msg, e);
+        //}
     }
 
     // ===================================================================================
