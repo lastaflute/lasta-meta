@@ -61,13 +61,13 @@ import org.lastaflute.core.json.annotation.JsonDatePattern;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
+import org.lastaflute.meta.document.ActionDocumentAnalyzer;
+import org.lastaflute.meta.document.DocumentAnalyzerFactory;
+import org.lastaflute.meta.document.docmeta.ActionDocMeta;
+import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
-import org.lastaflute.meta.generator.ActionDocumentGenerator;
-import org.lastaflute.meta.generator.DocumentGeneratorFactory;
-import org.lastaflute.meta.generator.outputmeta.OutputMetaSerializer;
-import org.lastaflute.meta.infra.MavenVersionFinder;
-import org.lastaflute.meta.meta.ActionDocMeta;
-import org.lastaflute.meta.meta.TypeDocMeta;
+import org.lastaflute.meta.infra.maven.MavenVersionFinder;
 import org.lastaflute.meta.swagger.web.LaActionSwaggerable;
 import org.lastaflute.web.api.JsonParameter;
 import org.lastaflute.web.response.ActionResponse;
@@ -952,12 +952,12 @@ public class SwaggerGenerator {
         return new DocumentGenerator();
     }
 
-    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
-        return new DocumentGeneratorFactory();
+    protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
+        return new DocumentAnalyzerFactory();
     }
 
-    protected ActionDocumentGenerator createActionDocumentGenerator() {
-        return documentGenerator.createActionDocumentGenerator();
+    protected ActionDocumentAnalyzer createActionDocumentGenerator() {
+        return documentGenerator.createActionDocumentAnalyzer();
     }
 
     protected OptionalThing<String> prepareApplicationVersion() {

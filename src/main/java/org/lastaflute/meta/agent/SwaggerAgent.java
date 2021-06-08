@@ -16,7 +16,7 @@
 package org.lastaflute.meta.agent;
 
 import org.dbflute.optional.OptionalThing;
-import org.lastaflute.meta.infra.MavenVersionFinder;
+import org.lastaflute.meta.infra.maven.MavenVersionFinder;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.servlet.request.RequestManager;
 

@@ -23,13 +23,13 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.meta.generator.ActionDocumentGenerator;
-import org.lastaflute.meta.generator.DocumentGeneratorFactory;
-import org.lastaflute.meta.generator.JobDocumentGenerator;
-import org.lastaflute.meta.generator.outputmeta.OutputMetaSerializer;
-import org.lastaflute.meta.meta.ActionDocMeta;
-import org.lastaflute.meta.sourceparser.SourceParserReflector;
-import org.lastaflute.meta.sourceparser.SourceParserReflectorFactory;
+import org.lastaflute.meta.document.ActionDocumentAnalyzer;
+import org.lastaflute.meta.document.DocumentAnalyzerFactory;
+import org.lastaflute.meta.document.JobDocumentAnalyzer;
+import org.lastaflute.meta.document.docmeta.ActionDocMeta;
+import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
+import org.lastaflute.meta.infra.sourcecode.SourceParserReflector;
+import org.lastaflute.meta.infra.sourcecode.SourceParserReflectorFactory;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**
@@ -99,8 +99,8 @@ public class DocumentGenerator {
         return new SourceParserReflectorFactory();
     }
 
-    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
-        return new DocumentGeneratorFactory();
+    protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
+        return new DocumentAnalyzerFactory();
     }
 
     // ===================================================================================
@@ -129,24 +129,24 @@ public class DocumentGenerator {
     }
 
     protected Map<String, Object> generateLastaDetailMap() {
-        final List<ActionDocMeta> actionDocMetaList = createActionDocumentGenerator().generateActionDocMetaList();
+        final List<ActionDocMeta> actionDocMetaList = createActionDocumentAnalyzer().generateActionDocMetaList();
         final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
         lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
-        createJobDocumentGenerator().ifPresent(jobDocumentGenerator -> {
+        createJobDocumentAnalyzer().ifPresent(jobDocumentGenerator -> {
             lastaMetaDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
         });
         return lastaMetaDetailMap;
     }
 
-    protected ActionDocumentGenerator createActionDocumentGenerator() {
-        return createDocumentGeneratorFactory().createActionDocumentGenerator(srcDirList, depth, sourceParserReflector);
+    protected ActionDocumentAnalyzer createActionDocumentAnalyzer() {
+        return createDocumentGeneratorFactory().createActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
-    protected OptionalThing<JobDocumentGenerator> createJobDocumentGenerator() {
+    protected OptionalThing<JobDocumentAnalyzer> createJobDocumentAnalyzer() {
         if (jobDocSuppressed) {
             return OptionalThing.empty();
         }
-        return createDocumentGeneratorFactory().createJobDocumentGenerator(srcDirList, depth, sourceParserReflector);
+        return createDocumentGeneratorFactory().createJobDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
     // ===================================================================================

@@ -23,7 +23,7 @@ import java.util.function.Predicate;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.lastaflute.meta.meta.ActionDocMeta;
+import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 
 /**
  * @author p1us2er0

@@ -17,7 +17,7 @@ package org.lastaflute.meta.agent.outputmeta;
 
 import java.nio.file.Path;
 
-import org.lastaflute.meta.generator.outputmeta.OutputMetaPhysical;
+import org.lastaflute.meta.document.outputmeta.OutputMetaPhysical;
 
 /**
  * @author jflute
