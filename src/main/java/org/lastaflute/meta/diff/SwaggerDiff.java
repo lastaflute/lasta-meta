@@ -42,7 +42,7 @@ import io.swagger.v3.oas.models.OpenAPI;
  * @author p1us2er0
  * @author jflute
  */
-public class SwaggerDiffGenerator {
+public class SwaggerDiff {
 
     // ===================================================================================
     //                                                                           Attribute
@@ -52,11 +52,11 @@ public class SwaggerDiffGenerator {
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public SwaggerDiffGenerator() {
+    public SwaggerDiff() {
         this(op -> {});
     }
 
-    public SwaggerDiffGenerator(Consumer<SwaggerDiffOption> opLambda) {
+    public SwaggerDiff(Consumer<SwaggerDiffOption> opLambda) {
         this.swaggerDiffOption = this.createSwaggerDiffOption(opLambda);
     }
 

@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
-import org.lastaflute.meta.diff.SwaggerDiffGenerator;
+import org.lastaflute.meta.diff.SwaggerDiff;
 import org.lastaflute.meta.diff.SwaggerDiffOption;
 import org.lastaflute.meta.exception.YourSwaggerDiffException;
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
             throw new IllegalArgumentException("The argument 'opLambda' should not be null.");
         }
         logger.debug("...Verifying that your swagger.json is synchronized with source codes: path={}", locationPath);
-        final SwaggerDiffGenerator diff = newSwaggerDiff(opLambda);
+        final SwaggerDiff diff = newSwaggerDiff(opLambda);
         final String outputSwaggerJsonPath = newOutputMetaAgent().getSwaggerJsonPath().toString();
 
         // SwaggerDiff's rule: left means old, right means new
@@ -56,8 +56,8 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         }
     }
 
-    protected SwaggerDiffGenerator newSwaggerDiff(Consumer<SwaggerDiffOption> opLambda) {
-        return new SwaggerDiffGenerator(opLambda);
+    protected SwaggerDiff newSwaggerDiff(Consumer<SwaggerDiffOption> opLambda) {
+        return new SwaggerDiff(opLambda);
     }
 
     protected OutputMetaAgent newOutputMetaAgent() {
