@@ -45,7 +45,11 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         logger.debug("...Verifying that your swagger.json is synchronized with source codes: path={}", locationPath);
         final SwaggerDiffGenerator diff = newSwaggerDiff(opLambda);
         final String outputSwaggerJsonPath = newOutputMetaAgent().getSwaggerJsonPath().toString();
-        final String diffResult = diff.diffFromLocations(locationPath, outputSwaggerJsonPath);
+
+        // SwaggerDiff's rule: left means old, right means new
+        // master is your swagger here
+        final String diffResult = diff.diffFromLocations(outputSwaggerJsonPath, locationPath);
+
         // TODO awaawa improve SwaggerDiff determination by jflute (2021/05/29)
         if (!diffResult.isEmpty()) { // has differences
             throwYourSwaggerDiffException(diffResult);
@@ -64,8 +68,11 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
         br.addNotice("Found the differences between your swagger.json and source codes.");
         br.addItem("Advice");
-        br.addElement("Your swagger.json should be synchronized with source codes.");
-        br.addElement("So make sure your swagger.json or source codes e.g. Action classes.");
+        br.addElement("The application source codes should be synchronized with your swagger.json.");
+        br.addElement("So make sure your source codes e.g. Action classes (or your swagger.json).");
+        br.addElement("");
+        br.addElement("Your swagger.json is treated as master.");
+        br.addElement("So, for example, 'New' means 'Add it to source codes'.");
         br.addItem("Diff Result");
         br.addElement(diffResult);
         final String msg = br.buildExceptionMessage();
