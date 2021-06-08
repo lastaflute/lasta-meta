@@ -28,8 +28,8 @@ import org.lastaflute.meta.document.DocumentAnalyzerFactory;
 import org.lastaflute.meta.document.JobDocumentAnalyzer;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
-import org.lastaflute.meta.javacode.SourceParserReflector;
-import org.lastaflute.meta.javacode.SourceParserReflectorFactory;
+import org.lastaflute.meta.sourceparser.SourceParserReflector;
+import org.lastaflute.meta.sourceparser.SourceParserReflectorFactory;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**

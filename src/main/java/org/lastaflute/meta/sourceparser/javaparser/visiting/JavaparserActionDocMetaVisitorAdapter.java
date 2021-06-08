@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.javacode.javaparser.visiting;
+package org.lastaflute.meta.sourceparser.javaparser.visiting;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -27,7 +27,7 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
-import org.lastaflute.meta.javacode.javaparser.assist.JavaparserMethodIdentityDeterminer;
+import org.lastaflute.meta.sourceparser.javaparser.assist.JavaparserMethodIdentityDeterminer;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
