@@ -153,7 +153,12 @@ public class SwaggerDiffGenerator {
 
     protected String decodeContent(String swaggerContent, String encoding) throws UnsupportedEncodingException {
         // TODO awaawa fix later, about '%24' problem by jflute (2021/06/08)
-        return Srl.replace(swaggerContent, "%24", "$");
+        String filtered = swaggerContent;
+        filtered = Srl.replace(filtered, "%24", "$");
+        filtered = Srl.replace(filtered, "%3C", "<");
+        filtered = Srl.replace(filtered, "%3E", ">");
+        filtered = Srl.replace(filtered, "%40", "@");
+        return filtered;
         // old code: failed by regular expression keyword e.g. '%&'
         //try {
         //    return URLDecoder.decode(swaggerContent, encoding);
