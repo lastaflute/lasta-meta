@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.infra.sourcecode.javaparser.assist;
+package org.lastaflute.meta.javacode.javaparser.assist;
 
 import java.lang.reflect.Method;
 import java.util.stream.Collectors;

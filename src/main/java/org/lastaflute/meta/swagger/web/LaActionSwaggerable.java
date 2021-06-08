@@ -29,7 +29,7 @@ import org.lastaflute.web.response.JsonResponse;
  * @author jflute
  * @since 0.2.6 (2017/06/11 Sunday)
  */
-public interface LaActionSwaggerable {
+public interface LaActionSwaggerable { // used by application's SwaggerAction
 
     /**
      * Prepare JSON for e.g. SwaggerUI content. <br>

@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.infra.sourcecode.javaparser;
+package org.lastaflute.meta.javacode.javaparser;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
@@ -30,11 +30,11 @@ import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.JobDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
-import org.lastaflute.meta.infra.sourcecode.SourceParserReflector;
-import org.lastaflute.meta.infra.sourcecode.javaparser.assist.JavaparserMethodIdentityDeterminer;
-import org.lastaflute.meta.infra.sourcecode.javaparser.parsing.JavaparserSourceMethodHandler;
-import org.lastaflute.meta.infra.sourcecode.javaparser.parsing.JavaparserSourceTypeHandler;
-import org.lastaflute.meta.infra.sourcecode.javaparser.visiting.JavaparserActionDocMetaVisitorAdapter;
+import org.lastaflute.meta.javacode.SourceParserReflector;
+import org.lastaflute.meta.javacode.javaparser.assist.JavaparserMethodIdentityDeterminer;
+import org.lastaflute.meta.javacode.javaparser.parsing.JavaparserSourceMethodHandler;
+import org.lastaflute.meta.javacode.javaparser.parsing.JavaparserSourceTypeHandler;
+import org.lastaflute.meta.javacode.javaparser.visiting.JavaparserActionDocMetaVisitorAdapter;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;

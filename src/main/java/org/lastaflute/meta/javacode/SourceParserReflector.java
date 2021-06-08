@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.infra.sourcecode;
+package org.lastaflute.meta.javacode;
 
 import java.lang.reflect.Method;
 import java.util.List;

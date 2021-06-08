@@ -36,7 +36,7 @@ import org.dbflute.util.DfStringUtil;
 import org.lastaflute.di.core.ComponentDef;
 import org.lastaflute.di.core.LaContainer;
 import org.lastaflute.di.core.factory.SingletonLaContainerFactory;
-import org.lastaflute.meta.infra.sourcecode.SourceParserReflector;
+import org.lastaflute.meta.javacode.SourceParserReflector;
 import org.lastaflute.web.Execute;
 import org.lastaflute.web.ruts.config.ActionExecute;
 import org.lastaflute.web.ruts.config.ActionMapping;

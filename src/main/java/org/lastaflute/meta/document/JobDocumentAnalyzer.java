@@ -25,7 +25,7 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.exception.ComponentNotFoundException;
 import org.lastaflute.meta.document.docmeta.JobDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
-import org.lastaflute.meta.infra.sourcecode.SourceParserReflector;
+import org.lastaflute.meta.javacode.SourceParserReflector;
 import org.lastaflute.meta.util.LaDocReflectionUtil;
 
 /**

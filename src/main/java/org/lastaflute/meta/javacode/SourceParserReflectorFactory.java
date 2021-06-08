@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.infra.sourcecode;
+package org.lastaflute.meta.javacode;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.lastaflute.meta.infra.maven.MavenVersionFinder;
-import org.lastaflute.meta.infra.sourcecode.javaparser.JavaparserSourceParserReflector;
+import org.lastaflute.meta.javacode.javaparser.JavaparserSourceParserReflector;
 import org.dbflute.util.DfStringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
