@@ -161,7 +161,8 @@ public class SwaggerGenerator {
      * @return The map of swagger information. (NotNull)
      */
     public Map<String, Object> generateSwaggerMap() {
-        return generateSwaggerMap(op -> {});
+        return generateSwaggerMap(op -> {
+        });
     }
 
     /**
@@ -1110,6 +1111,9 @@ public class SwaggerGenerator {
         return new MavenVersionFinder();
     }
 
+    // MUST be in the form of a URI. p1us2er0  (2021/06/08)
+    // https://swagger.io/docs/specification/using-ref/
+    // https://spec.openapis.org/oas/v3.1.0#reference-object
     protected String encode(String value) {
         try {
             return URLEncoder.encode(value, "UTF-8");
