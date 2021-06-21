@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.meta</groupId>
 	<artifactId>lasta-meta</artifactId>
-	<version>0.5.1-N-SNAPSHOT</version>
+	<version>0.5.1-O-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-meta</name>
@@ -14,7 +14,7 @@
 
 	<properties>
 		<dbflute.version>1.2.3</dbflute.version> <!-- about one year old (from now) -->
-		<lastaflute.version>1.2.1-F-SNAPSHOT</lastaflute.version> <!-- about one year old (from now) -->
+		<lastaflute.version>1.2.1-L-SNAPSHOT</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.4</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.20.2</javaparser.version>
