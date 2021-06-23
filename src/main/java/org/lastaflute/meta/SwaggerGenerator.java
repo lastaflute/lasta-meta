@@ -25,7 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 
 import org.dbflute.optional.OptionalThing;
 import org.lastaflute.core.direction.AccessibleConfig;
-import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
@@ -101,7 +101,7 @@ public class SwaggerGenerator {
             swaggerMap.put("schemes", prepareSwaggerMapSchemes()); // #thinking jflute why? (2021/06/21)
             return swaggerMap;
         }
-        return createSwaggerMap(createSwaggerOption(opLambda)); // basically here if local development
+        return createSwaggerSpecMap(createSwaggerOption(opLambda)); // basically here if local development
     }
 
     // -----------------------------------------------------
@@ -134,10 +134,10 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                         Swagger Map
     //                                                                         ===========
-    protected Map<String, Object> createSwaggerMap(SwaggerOption swaggerOption) {
+    protected Map<String, Object> createSwaggerSpecMap(SwaggerOption swaggerOption) {
         final SwaggerSpecCreator creator = newSwaggerSpecCreator(getAccessibleConfig(), getRequest());
-        return creator.createSwaggerMap(swaggerOption, (swaggerPathMap, swaggerDefinitionsMap, swaggerTagList) -> {
-            setupSwaggerPathMap(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList, swaggerOption);
+        return creator.createSwaggerSpecMap(swaggerOption, (pathsMap, definitionsMap, tagsList) -> {
+            setupSwaggerPathMap(pathsMap, definitionsMap, tagsList, swaggerOption);
         });
     }
 
@@ -148,37 +148,33 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                    Swagger Path Map
     //                                                                    ================
-    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
-            , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
-            , List<Map<String, Object>> swaggerTagList, SwaggerOption swaggerOption) { // top-level tags
-        final SwaggerSpecPathSetupper pathSetupper =
-                createSwaggerSpecPathSetupper(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList, swaggerOption);
+    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> pathsMap // map of top-level paths
+            , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
+            , List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) { // top-level tags
+        final SwaggerSpecPathSetupper pathSetupper = createSwaggerSpecPathSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
         pathSetupper.setupSwaggerPathMap(generateActionDocMetaList());
     }
 
     // -----------------------------------------------------
     //                                         Path Setupper
     //                                         -------------
-    protected SwaggerSpecPathSetupper createSwaggerSpecPathSetupper(Map<String, Map<String, Object>> swaggerPathMap,
-            Map<String, Map<String, Object>> swaggerDefinitionsMap, List<Map<String, Object>> swaggerTagList, SwaggerOption swaggerOption) {
+    protected SwaggerSpecPathSetupper createSwaggerSpecPathSetupper(Map<String, Map<String, Object>> pathsMap,
+            Map<String, Map<String, Object>> definitionsMap, List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) {
         // prepare mutable output (registered in setupper) here
-        final SwaggerSpecPathMutableOutput pathMutableOutput =
-                new SwaggerSpecPathMutableOutput(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList);
+        final SwaggerSpecPathMutableOutput pathMutableOutput = new SwaggerSpecPathMutableOutput(pathsMap, definitionsMap, tagsList);
 
         // prepare resources for setup here
         final RealJsonEngine swaggeruseJsonEngine = createJsonEngine();
-        final OptionalThing<JsonMappingOption> applicationJsonMappingOption = getApplicationJsonMappingOption();
+        final JsonControlMeta appJsonControlMeta = getAppJsonControlMeta();
         final List<Class<?>> nativeDataTypeList = dataNativeTypeProvider.provideNativeDataTypeList();
 
-        return newSwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, applicationJsonMappingOption,
-                nativeDataTypeList);
+        return newSwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
     }
 
     protected SwaggerSpecPathSetupper newSwaggerSpecPathSetupper(SwaggerSpecPathMutableOutput pathMutableOutput,
-            SwaggerOption swaggerOption, RealJsonEngine swaggeruseJsonEngine, OptionalThing<JsonMappingOption> applicationJsonMappingOption,
+            SwaggerOption swaggerOption, RealJsonEngine swaggeruseJsonEngine, JsonControlMeta appJsonControlMeta,
             List<Class<?>> nativeDataTypeList) {
-        return new SwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, applicationJsonMappingOption,
-                nativeDataTypeList);
+        return new SwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
     }
 
     // -----------------------------------------------------
@@ -216,7 +212,7 @@ public class SwaggerGenerator {
         return jsonEngineProvider.createJsonEngine();
     }
 
-    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return jsonEngineProvider.getApplicationJsonMappingOption();
+    protected JsonControlMeta getAppJsonControlMeta() {
+        return jsonEngineProvider.getAppJsonControlMeta();
     }
 }

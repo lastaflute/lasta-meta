@@ -30,7 +30,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.hibernate.validator.constraints.Length;
-import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.di.helper.misc.ParameterizedRef;
 import org.lastaflute.meta.SwaggerOption;
@@ -64,16 +64,16 @@ public class SwaggerSpecPathSetupper {
     //                                        Mutable Output
     //                                        --------------
     // mutable, regsitered in this class, these are output of this class
-    protected final Map<String, Map<String, Object>> swaggerPathMap;
-    protected final Map<String, Map<String, Object>> swaggerDefinitionsMap;
-    protected final List<Map<String, Object>> swaggerTagList;
+    protected final Map<String, Map<String, Object>> pathsMap;
+    protected final Map<String, Map<String, Object>> definitionsMap;
+    protected final List<Map<String, Object>> tagsList;
 
     // -----------------------------------------------------
     //                                    Resource for Setup
     //                                    ------------------
     protected final SwaggerOption swaggerOption; // not null
     protected final RealJsonEngine swaggeruseJsonEngine; // for swagger process, not null
-    protected final OptionalThing<JsonMappingOption> applicationJsonMappingOption; // from application, not null
+    protected final JsonControlMeta appJsonControlMeta; // from application, not null
     protected final List<Class<?>> nativeDataTypeList; // standard native types of e.g. parameter, not null, not empty
 
     // -----------------------------------------------------
@@ -89,21 +89,20 @@ public class SwaggerSpecPathSetupper {
     //                                                                         Constructor
     //                                                                         ===========
     public SwaggerSpecPathSetupper(SwaggerSpecPathMutableOutput pathMutableOutput, SwaggerOption swaggerOption,
-            RealJsonEngine swaggeruseJsonEngine, OptionalThing<JsonMappingOption> applicationJsonMappingOption,
-            List<Class<?>> nativeDataTypeList) {
+            RealJsonEngine swaggeruseJsonEngine, JsonControlMeta appJsonControlMeta, List<Class<?>> nativeDataTypeList) {
         // #hope jflute keep pathMutableOutput and handle them by output object (2021/06/23)
-        this.swaggerPathMap = pathMutableOutput.getSwaggerPathMap();
-        this.swaggerDefinitionsMap = pathMutableOutput.getSwaggerDefinitionsMap();
-        this.swaggerTagList = pathMutableOutput.getSwaggerTagList();
+        this.pathsMap = pathMutableOutput.getPathsMap();
+        this.definitionsMap = pathMutableOutput.getDefinitionsMap();
+        this.tagsList = pathMutableOutput.getTagsList();
 
         this.swaggerOption = swaggerOption;
         this.swaggeruseJsonEngine = swaggeruseJsonEngine;
-        this.applicationJsonMappingOption = applicationJsonMappingOption;
+        this.appJsonControlMeta = appJsonControlMeta;
         this.nativeDataTypeList = nativeDataTypeList;
 
         this.annotationHandler = newSwaggerSpecAnnotationHandler();
         this.enumHandler = newSwaggerSpecEnumHandler();
-        this.dataTypeHandler = newSwaggerSpecDataTypeHandler(applicationJsonMappingOption);
+        this.dataTypeHandler = newSwaggerSpecDataTypeHandler(appJsonControlMeta);
         this.defaultValueHandler = newSwaggerSpecDefaultValueHandler(dataTypeHandler, enumHandler);
         this.httpMethodHandler = newSwaggerSpecHttpMethodHandler(swaggerOption);
     }
@@ -116,8 +115,8 @@ public class SwaggerSpecPathSetupper {
         return new SwaggerSpecEnumHandler();
     }
 
-    protected SwaggerSpecDataTypeHandler newSwaggerSpecDataTypeHandler(OptionalThing<JsonMappingOption> applicationJsonMappingOption) {
-        return new SwaggerSpecDataTypeHandler(applicationJsonMappingOption);
+    protected SwaggerSpecDataTypeHandler newSwaggerSpecDataTypeHandler(JsonControlMeta appJsonControlMeta) {
+        return new SwaggerSpecDataTypeHandler(appJsonControlMeta);
     }
 
     protected SwaggerSpecDefaultValueHandler newSwaggerSpecDefaultValueHandler(SwaggerSpecDataTypeHandler dataTypeHandler,
@@ -235,16 +234,16 @@ public class SwaggerSpecPathSetupper {
         final String actionUrl = actionDocMeta.getUrl();
 
         // arrange swaggerUrlMap in swaggerPathMap if needs
-        if (!swaggerPathMap.containsKey(actionUrl)) { // first action for the URL
+        if (!pathsMap.containsKey(actionUrl)) { // first action for the URL
             final Map<String, Object> swaggerUrlMap = DfCollectionUtil.newLinkedHashMap();
-            swaggerPathMap.put(actionUrl, swaggerUrlMap);
+            pathsMap.put(actionUrl, swaggerUrlMap);
         }
 
         // "/signin/": {
         //   "post": {
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
         final Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerPathMap.get(actionUrl).put(httpMethod, swaggerHttpMethodMap);
+        pathsMap.get(actionUrl).put(httpMethod, swaggerHttpMethodMap);
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
@@ -360,7 +359,7 @@ public class SwaggerSpecPathSetupper {
                 // Form or Body's definition
                 //   "definitions": {
                 //     "org.docksidestage.app.web.signin.SigninBody": {
-                swaggerDefinitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
+                definitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
 
                 //         "schema": {
                 //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
@@ -392,8 +391,8 @@ public class SwaggerSpecPathSetupper {
         final String tag = DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/");
 
         // reflect the tags to top-level tags
-        if (swaggerTagList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
-            swaggerTagList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
+        if (tagsList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
+            tagsList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
         }
 
         //     "responses": {
@@ -408,7 +407,7 @@ public class SwaggerSpecPathSetupper {
     protected void doSetupSwaggerPathMapForOptionalPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
         final String actionUrl = actionDocMeta.getUrl();
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
-        String json = swaggeruseJsonEngine.toJson(swaggerPathMap.get(actionUrl).get(httpMethod));
+        String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
 
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
             List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
@@ -416,8 +415,8 @@ public class SwaggerSpecPathSetupper {
                 return aactionUrl.replaceAll("/\\{" + optionalPathName + "\\}", "");
             });
             // arrange swaggerUrlMap in swaggerPathMap if needs
-            if (!swaggerPathMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
-                swaggerPathMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
+            if (!pathsMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
+                pathsMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
             }
             Map<String, Object> swaggerHttpMethodMap =
                     swaggeruseJsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
@@ -428,10 +427,10 @@ public class SwaggerSpecPathSetupper {
                         return !deleteOptionalPathNameList.contains(parameter.get("name"));
                     }).collect(Collectors.toList());
             swaggerHttpMethodMap.put("parameters", parameterMapList);
-            swaggerPathMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
+            pathsMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
         });
-        Map<String, Object> swaggerUrlMap = swaggerPathMap.remove(actionUrl);
-        swaggerPathMap.put(actionUrl, swaggerUrlMap);
+        Map<String, Object> swaggerUrlMap = pathsMap.remove(actionUrl);
+        pathsMap.put(actionUrl, swaggerUrlMap);
     }
 
     protected String prepareSwaggerMapRefDefinitions(ActionDocMeta actiondocMeta) {
@@ -601,7 +600,7 @@ public class SwaggerSpecPathSetupper {
         //       "type": "object",
         //       ...
         String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
-        if (!swaggerDefinitionsMap.containsKey(derivedDefinitionName)) {
+        if (!definitionsMap.containsKey(derivedDefinitionName)) {
             final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
             schema.put("type", "object");
             final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
@@ -617,7 +616,7 @@ public class SwaggerSpecPathSetupper {
                 return property;
             }, (u, v) -> v, LinkedHashMap::new)));
 
-            swaggerDefinitionsMap.put(derivedDefinitionName, schema);
+            definitionsMap.put(derivedDefinitionName, schema);
         }
         return "#/definitions/" + encode(derivedDefinitionName);
     }

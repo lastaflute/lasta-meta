@@ -52,40 +52,40 @@ public class SwaggerSpecCreator {
     // ===================================================================================
     //                                                                              Create
     //                                                                              ======
-    public Map<String, Object> createSwaggerMap(SwaggerOption swaggerOption, SwaggerPathCall swaggerPathCall) {
+    public Map<String, Object> createSwaggerSpecMap(SwaggerOption swaggerOption, SwaggerPathCall swaggerPathCall) {
         // process order is order in swagger.json is here
-        final Map<String, Object> swaggerMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("swagger", "2.0");
-        swaggerMap.put("info", createSwaggerInfoMap());
-        swaggerMap.put("schemes", prepareSwaggerMapSchemes());
-        swaggerMap.put("basePath", derivedBasePath(swaggerOption));
+        final Map<String, Object> specMap = DfCollectionUtil.newLinkedHashMap();
+        specMap.put("swagger", "2.0");
+        specMap.put("info", createSwaggerInfoMap());
+        specMap.put("schemes", prepareSwaggerMapSchemes());
+        specMap.put("basePath", derivedBasePath(swaggerOption));
 
-        final List<Map<String, Object>> swaggerTagList = DfCollectionUtil.newArrayList();
-        swaggerMap.put("tags", swaggerTagList);
+        final List<Map<String, Object>> tagsList = DfCollectionUtil.newArrayList();
+        specMap.put("tags", tagsList);
 
         // security has no constraint of order but should be before paths for swagger.json view
         swaggerOption.getSecurityDefinitionList().ifPresent(securityDefinitionList -> {
-            adaptSecurityDefinitions(swaggerMap, securityDefinitionList);
+            adaptSecurityDefinitions(specMap, securityDefinitionList);
         });
 
         //  "paths": {
         //    "/root/": {
-        final Map<String, Map<String, Object>> swaggerPathMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("paths", swaggerPathMap);
+        final Map<String, Map<String, Object>> pathsMap = DfCollectionUtil.newLinkedHashMap();
+        specMap.put("paths", pathsMap);
 
         //   "definitions": {
         //     "org.docksidestage.app.web.signin.SigninBody": {
-        final Map<String, Map<String, Object>> swaggerDefinitionsMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerMap.put("definitions", swaggerDefinitionsMap);
+        final Map<String, Map<String, Object>> definitionsMap = DfCollectionUtil.newLinkedHashMap();
+        specMap.put("definitions", definitionsMap);
 
         // #hope jflute not map, handle them as object (2021/06/21)
-        swaggerPathCall.callback(swaggerPathMap, swaggerDefinitionsMap, swaggerTagList);
+        swaggerPathCall.callback(pathsMap, definitionsMap, tagsList);
 
         // header is under paths so MUST be after paths setup
         swaggerOption.getHeaderParameterList().ifPresent(headerParameterList -> {
-            adaptHeaderParameters(swaggerMap, headerParameterList); // needs paths in swaggerMap
+            adaptHeaderParameters(specMap, headerParameterList); // needs paths in swaggerMap
         });
-        return swaggerMap;
+        return specMap;
     }
 
     public static interface SwaggerPathCall {
@@ -180,10 +180,11 @@ public class SwaggerSpecCreator {
             final Map<Object, Object> pathDataMap = (Map<Object, Object>) pathData;
 
             headerParameterList.forEach(headerParameter -> {
-                if (!pathDataMap.containsKey("parameters")) {
-                    pathDataMap.put("parameters", DfCollectionUtil.newArrayList());
+                final String key = "parameters";
+                if (!pathDataMap.containsKey(key)) {
+                    pathDataMap.put(key, DfCollectionUtil.newArrayList());
                 }
-                final Object parameters = pathDataMap.get("parameters");
+                final Object parameters = pathDataMap.get(key);
                 if (parameters instanceof List<?>) {
                     @SuppressWarnings("all")
                     final List<Object> parameterList = (List<Object>) parameters;

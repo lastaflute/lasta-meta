@@ -24,11 +24,10 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
 
-import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfTypeUtil;
-import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.annotation.JsonDatePattern;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 
@@ -42,13 +41,13 @@ public class SwaggerSpecDataTypeHandler {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected final OptionalThing<JsonMappingOption> applicationJsonMappingOption; // from application, not null
+    protected final JsonControlMeta appJsonControlMeta; // from application, not null
 
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public SwaggerSpecDataTypeHandler(OptionalThing<JsonMappingOption> applicationJsonMappingOption) {
-        this.applicationJsonMappingOption = applicationJsonMappingOption;
+    public SwaggerSpecDataTypeHandler(JsonControlMeta appJsonControlMeta) {
+        this.appJsonControlMeta = appJsonControlMeta;
     }
 
     // ===================================================================================
@@ -108,7 +107,8 @@ public class SwaggerSpecDataTypeHandler {
         if (jsonDatePatternDateTimeFormatter.isPresent()) {
             return jsonDatePatternDateTimeFormatter.get();
         }
-        return applicationJsonMappingOption.flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateFormatter())
+        return appJsonControlMeta.getMappingControlMeta()
+                .flatMap(meta -> meta.getLocalDateFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd"));
     }
 
@@ -117,8 +117,8 @@ public class SwaggerSpecDataTypeHandler {
         if (jsonDatePatternDateTimeFormatter.isPresent()) {
             return jsonDatePatternDateTimeFormatter.get();
         }
-        return applicationJsonMappingOption
-                .flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalDateTimeFormatter())
+        return appJsonControlMeta.getMappingControlMeta()
+                .flatMap(meta -> meta.getLocalDateTimeFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS"));
     }
 
@@ -127,7 +127,8 @@ public class SwaggerSpecDataTypeHandler {
         if (jsonDatePatternDateTimeFormatter.isPresent()) {
             return jsonDatePatternDateTimeFormatter.get();
         }
-        return applicationJsonMappingOption.flatMap(applicationJsonMappingOption -> applicationJsonMappingOption.getLocalTimeFormatter())
+        return appJsonControlMeta.getMappingControlMeta()
+                .flatMap(meta -> meta.getLocalTimeFormatter())
                 .orElseGet(() -> DateTimeFormatter.ofPattern("HH:mm:ss.SSS"));
     }
 

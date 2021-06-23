@@ -21,7 +21,7 @@ import java.util.Map;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.meta.document.ActionDocumentAnalyzer;
 import org.lastaflute.meta.document.DocumentAnalyzerFactory;
@@ -163,7 +163,7 @@ public class DocumentGenerator {
         return metauseJsonEngineProvider.createJsonEngine();
     }
 
-    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return metauseJsonEngineProvider.getApplicationJsonMappingOption();
+    protected JsonControlMeta getAppJsonControlMeta() {
+        return metauseJsonEngineProvider.getAppJsonControlMeta();
     }
 }

@@ -15,10 +15,8 @@
  */
 package org.lastaflute.meta.infra.json;
 
-import org.dbflute.optional.OptionalThing;
 import org.lastaflute.core.json.JsonManager;
-import org.lastaflute.core.json.JsonMappingOption;
-import org.lastaflute.core.json.SimpleJsonManager;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.GsonJsonEngine;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
@@ -35,18 +33,18 @@ public class MetauseJsonEngineProvider {
     //                                                                         ===========
     public RealJsonEngine createJsonEngine() {
         return new GsonJsonEngine(builder -> {
+            // starndard option as possible because other-world parser may parse it
             builder.serializeNulls().setPrettyPrinting();
         }, op -> {});
         // not to depend on application settings
         //return ContainerUtil.getComponent(JsonManager.class);
     }
 
-    public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        // #hope jflute use pulloutControlMeta() instead of downcast (2021/06/23)
-        JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
-        if (jsonManager instanceof SimpleJsonManager) {
-            return ((SimpleJsonManager) jsonManager).getJsonMappingOption();
-        }
-        return OptionalThing.empty();
+    // ===================================================================================
+    //                                                                        Control Meta
+    //                                                                        ============
+    public JsonControlMeta getAppJsonControlMeta() { // for e.g. FieldNaming, DateTimeFormatter
+        final JsonManager jsonManager = ContainerUtil.getComponent(JsonManager.class);
+        return jsonManager.pulloutControlMeta();
     }
 }

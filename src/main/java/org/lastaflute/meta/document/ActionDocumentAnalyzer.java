@@ -38,8 +38,8 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
 import org.dbflute.util.DfStringUtil;
-import org.lastaflute.core.json.JsonMappingOption;
 import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.meta.document.action.ExecuteMethodCollector;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
@@ -529,8 +529,8 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         }
         // basically JsonBody or JsonResult here
         // (Thymeleaf beans cannot be analyzed as framework so not here)
-        return getApplicationJsonMappingOption().flatMap(jsonMappingOption -> {
-            return jsonMappingOption.getFieldNaming().map(naming -> {
+        return getAppJsonControlMeta().getMappingControlMeta().flatMap(meta -> {
+            return meta.getFieldNaming().map(naming -> {
                 if (naming == JsonFieldNaming.IDENTITY) {
                     return FieldNamingPolicy.IDENTITY.translateName(field);
                 } else if (naming == JsonFieldNaming.CAMEL_TO_LOWER_SNAKE) {
@@ -607,7 +607,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         return ContainerUtil.getComponent(ActionPathResolver.class);
     }
 
-    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return metauseJsonEngineProvider.getApplicationJsonMappingOption();
+    protected JsonControlMeta getAppJsonControlMeta() {
+        return metauseJsonEngineProvider.getAppJsonControlMeta();
     }
 }

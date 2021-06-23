@@ -29,34 +29,34 @@ public class SwaggerSpecPathMutableOutput {
     //                                                                           Attribute
     //                                                                           =========
     // these are mutable, registered in setupper
-    protected final Map<String, Map<String, Object>> swaggerPathMap;
-    protected final Map<String, Map<String, Object>> swaggerDefinitionsMap;
-    protected final List<Map<String, Object>> swaggerTagList;
+    protected final Map<String, Map<String, Object>> pathsMap;
+    protected final Map<String, Map<String, Object>> definitionsMap;
+    protected final List<Map<String, Object>> tagsList;
 
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public SwaggerSpecPathMutableOutput(Map<String, Map<String, Object>> swaggerPathMap // map of top-level paths
-            , Map<String, Map<String, Object>> swaggerDefinitionsMap // map of top-level definitions
-            , List<Map<String, Object>> swaggerTagList) { // top-level tags
-        this.swaggerPathMap = swaggerPathMap;
-        this.swaggerDefinitionsMap = swaggerDefinitionsMap;
-        this.swaggerTagList = swaggerTagList;
+    public SwaggerSpecPathMutableOutput(Map<String, Map<String, Object>> pathsMap // map of top-level paths
+            , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
+            , List<Map<String, Object>> tagsList) { // top-level tags
+        this.pathsMap = pathsMap;
+        this.definitionsMap = definitionsMap;
+        this.tagsList = tagsList;
     }
 
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
     // don't wrap as read-only, should be mutable
-    public Map<String, Map<String, Object>> getSwaggerPathMap() {
-        return swaggerPathMap;
+    public Map<String, Map<String, Object>> getPathsMap() {
+        return pathsMap;
     }
 
-    public Map<String, Map<String, Object>> getSwaggerDefinitionsMap() {
-        return swaggerDefinitionsMap;
+    public Map<String, Map<String, Object>> getDefinitionsMap() {
+        return definitionsMap;
     }
 
-    public List<Map<String, Object>> getSwaggerTagList() {
-        return swaggerTagList;
+    public List<Map<String, Object>> getTagsList() {
+        return tagsList;
     }
 }
