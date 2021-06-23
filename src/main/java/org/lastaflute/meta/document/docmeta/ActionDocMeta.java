@@ -49,10 +49,10 @@ public class ActionDocMeta {
     /** The simple name of type declaring the execute method. e.g. "SeaAction" (NotNull: after setup) */
     private String simpleTypeName;
 
-    /** description. */
+    /** The whole comment about action method, e.g. class javadoc + method javadoc. (NullAllowed: depends on java parser) */
     private String description; // basically extracted by java parser
 
-    /** type comment. */
+    /** The javadoc of Action class. (NullAllowed: depends on java parser) */
     private String typeComment; // basically extracted by java parser
 
     // -----------------------------------------------------
@@ -65,9 +65,9 @@ public class ActionDocMeta {
     //                                           Method Item
     //                                           -----------
     /** The method name of action execute. e.g. org.docksidestage.app.web.sea.SeaAction@land() (NotNull: after setup) */
-    private String methodName;
+    private String methodName; // contains HTTP method if RESTful e.g. "get$index"
 
-    /** The method comment of action execute. e.g. "Let's go to land" */
+    /** The method comment of action execute. e.g. "Let's go to land" (NullAllowed: depends on java parser) */
     private String methodComment; // basically extracted by java parser
 
     // -----------------------------------------------------
@@ -94,10 +94,10 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                           Source Item
     //                                           -----------
-    /** file line count. */
+    /** The line count of the action class file. (NullAllowed: depends on java parser) */
     private Integer fileLineCount; // basically extracted by java parser
 
-    /** method line count. */
+    /** The line count of the action method. (NullAllowed: depends on java parser) */
     private Integer methodLineCount; // basically extracted by java parser
 
     // ===================================================================================
