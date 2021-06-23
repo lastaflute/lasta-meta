@@ -23,12 +23,8 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,12 +44,13 @@ import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.meta.document.action.ExecuteMethodCollector;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.document.type.NativeDataTypeProvider;
+import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
 import org.lastaflute.meta.sourceparser.SourceParserReflector;
 import org.lastaflute.meta.util.LaDocReflectionUtil;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;
 import org.lastaflute.web.ruts.config.ActionExecute;
-import org.lastaflute.web.ruts.multipart.MultipartFormFile;
 
 import com.google.gson.FieldNamingPolicy;
 
@@ -79,11 +76,6 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         TARGET_SUFFIX_LIST = Arrays.asList("Form", "Body", "Bean", "Result");
     }
 
-    protected static final List<Class<?>> NATIVE_TYPE_LIST =
-            Arrays.asList(void.class, boolean.class, byte.class, int.class, long.class, float.class, double.class, Void.class, Byte.class,
-                    Boolean.class, Integer.class, Byte.class, Long.class, Float.class, Double.class, String.class, Map.class, byte[].class,
-                    Byte[].class, Date.class, LocalDate.class, LocalDateTime.class, LocalTime.class, MultipartFormFile.class);
-
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
@@ -95,6 +87,18 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
 
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
+
+    protected final MetauseJsonEngineProvider metauseJsonEngineProvider = newMetauseJsonEngineProvider();
+
+    protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
+        return new MetauseJsonEngineProvider();
+    }
+
+    protected final NativeDataTypeProvider nativeDataTypeProvider = newDataNativeTypeProvider();
+
+    protected NativeDataTypeProvider newDataNativeTypeProvider() {
+        return new NativeDataTypeProvider();
+    }
 
     // ===================================================================================
     //                                                                         Constructor
@@ -291,7 +295,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
             if (Iterable.class.isAssignableFrom(returnClass)) { // e.g. List<String>, List<Sea<Land>>
                 returnClass = LaDocReflectionUtil.extractElementType(method.getGenericReturnType(), 1);
             }
-            final List<Class<? extends Object>> nativeClassList = getNativeClassList();
+            final List<Class<? extends Object>> nativeClassList = getNativeDataTypeList();
             if (returnClass != null && !nativeClassList.contains(returnClass)) {
                 final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(returnClass, genericParameterTypesMap, depth);
                 returnDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
@@ -306,10 +310,6 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     protected void derivedManualReturnClass(Method method, TypeDocMeta returnDocMeta) {
-    }
-
-    public List<Class<?>> getNativeClassList() {
-        return NATIVE_TYPE_LIST;
     }
 
     // -----------------------------------------------------
@@ -590,6 +590,13 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     // ===================================================================================
+    //                                                                    Native Data Type
+    //                                                                    ================
+    public List<Class<?>> getNativeDataTypeList() {
+        return nativeDataTypeProvider.provideNativeDataTypeList();
+    }
+
+    // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
     protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
@@ -601,6 +608,6 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
+        return metauseJsonEngineProvider.getApplicationJsonMappingOption();
     }
 }

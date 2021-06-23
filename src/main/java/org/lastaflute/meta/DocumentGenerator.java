@@ -28,6 +28,7 @@ import org.lastaflute.meta.document.DocumentAnalyzerFactory;
 import org.lastaflute.meta.document.JobDocumentAnalyzer;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
+import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
 import org.lastaflute.meta.sourceparser.SourceParserReflector;
 import org.lastaflute.meta.sourceparser.SourceParserReflectorFactory;
 
@@ -62,6 +63,12 @@ public class DocumentGenerator {
 
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
+
+    protected final MetauseJsonEngineProvider metauseJsonEngineProvider = newMetauseJsonEngineProvider();
+
+    protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
+        return new MetauseJsonEngineProvider();
+    }
 
     protected final OutputMetaSerializer outputMetaSerializer = newOutputMetaSerializer();
 
@@ -138,7 +145,7 @@ public class DocumentGenerator {
         return lastaMetaDetailMap;
     }
 
-    protected ActionDocumentAnalyzer createActionDocumentAnalyzer() {
+    public ActionDocumentAnalyzer createActionDocumentAnalyzer() { // also called by e.g. swagger
         return createDocumentGeneratorFactory().createActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
@@ -152,11 +159,11 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    public RealJsonEngine createJsonEngine() {
-        return createDocumentGeneratorFactory().createJsonEngine();
+    protected RealJsonEngine createJsonEngine() {
+        return metauseJsonEngineProvider.createJsonEngine();
     }
 
-    public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
+    protected OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
+        return metauseJsonEngineProvider.getApplicationJsonMappingOption();
     }
 }

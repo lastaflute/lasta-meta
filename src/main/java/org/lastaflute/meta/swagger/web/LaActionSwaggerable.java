@@ -46,6 +46,55 @@ public interface LaActionSwaggerable { // used by application's SwaggerAction
      */
     JsonResponse<Map<String, Object>> json();
 
+    // e.g. SwaggerAction implementation
+    //@AllowAnyoneAccess
+    //public class SwaggerAction extends FortressBaseAction implements LaActionSwaggerable {
+    //
+    //    // ===================================================================================
+    //    //                                                                           Attribute
+    //    //                                                                           =========
+    //    @Resource
+    //    private RequestManager requestManager;
+    //    @Resource
+    //    private FortressConfig config;
+    //
+    //    // ===================================================================================
+    //    //                                                                             Execute
+    //    //                                                                             =======
+    //    @Execute
+    //    public HtmlResponse index() {
+    //        verifySwaggerAllowed();
+    //        String swaggerJsonUrl = toActionUrl(SwaggerAction.class, moreUrl("json"));
+    //        return new SwaggerAgent(requestManager).prepareSwaggerUiResponse(swaggerJsonUrl);
+    //    }
+    //
+    //    @Execute
+    //    public JsonResponse<Map<String, Object>> json() {
+    //        verifySwaggerAllowed();
+    //        return asJson(new SwaggerGenerator().generateSwaggerMap());
+    //    }
+    //
+    //    private void verifySwaggerAllowed() { // also check in ActionAdjustmentProvider
+    //        verifyOrClientError("Swagger is not enabled.", config.isSwaggerEnabled());
+    //    }
+    //}
+    // e.g. LastaMetaTest implementation
+    //public class ShowbaseLastaMetaTest extends UnitShowbaseTestCase {
+    //
+    //    @Override
+    //    protected String prepareMockContextPath() {
+    //        return ShowbaseBoot.CONTEXT; // basically for swagger
+    //    }
+    //
+    //    public void test_document() throws Exception {
+    //        saveLastaMeta();
+    //    }
+    //
+    //    public void test_swaggerJson() throws Exception {
+    //        saveSwaggerMeta(new SwaggerAction());
+    //    }
+    //}
+
     /**
      * Read swagger.json in classpath resource, basically for application swagger.json. <br>
      * The swagger.json file should be UTF-8.
