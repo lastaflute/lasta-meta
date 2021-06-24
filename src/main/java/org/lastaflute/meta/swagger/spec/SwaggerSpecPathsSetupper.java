@@ -225,12 +225,12 @@ public class SwaggerSpecPathsSetupper {
     //
     public void setupSwaggerPathsMap(List<ActionDocMeta> actionDocMetaList) { // top-level tags
         // output this process is registration of mutable attributes
-        actionDocMetaList.stream().forEach(actiondocMeta -> {
-            doSetupSwaggerPathMap(actiondocMeta);
+        actionDocMetaList.stream().forEach(actionDocMeta -> {
+            doSetupSwaggerPathsMap(actionDocMeta);
         });
     }
 
-    protected void doSetupSwaggerPathMap(ActionDocMeta actionDocMeta) {
+    protected void doSetupSwaggerPathsMap(ActionDocMeta actionDocMeta) {
         final String actionUrl = actionDocMeta.getUrl();
 
         // arrange swaggerUrlMap in swaggerPathMap if needs
@@ -400,11 +400,11 @@ public class SwaggerSpecPathsSetupper {
         prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actionDocMeta);
 
         if (!optionalPathNameList.isEmpty()) {
-            doSetupSwaggerPathMapForOptionalPath(actionDocMeta, optionalPathNameList);
+            doSetupSwaggerPathsMapForOptionalPath(actionDocMeta, optionalPathNameList);
         }
     }
 
-    protected void doSetupSwaggerPathMapForOptionalPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
+    protected void doSetupSwaggerPathsMapForOptionalPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
         final String actionUrl = actionDocMeta.getUrl();
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
         String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
