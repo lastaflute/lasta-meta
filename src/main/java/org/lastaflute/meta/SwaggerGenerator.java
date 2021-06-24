@@ -34,8 +34,8 @@ import org.lastaflute.meta.document.type.NativeDataTypeProvider;
 import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
 import org.lastaflute.meta.swagger.json.SwaggerJsonReader;
 import org.lastaflute.meta.swagger.spec.SwaggerSpecCreator;
-import org.lastaflute.meta.swagger.spec.SwaggerSpecPathMutableOutput;
-import org.lastaflute.meta.swagger.spec.SwaggerSpecPathSetupper;
+import org.lastaflute.meta.swagger.spec.SwaggerSpecPathsMutableOutput;
+import org.lastaflute.meta.swagger.spec.SwaggerSpecPathsSetupper;
 import org.lastaflute.meta.swagger.web.LaActionSwaggerable;
 import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.util.LaRequestUtil;
@@ -137,7 +137,7 @@ public class SwaggerGenerator {
     protected Map<String, Object> createSwaggerSpecMap(SwaggerOption swaggerOption) {
         final SwaggerSpecCreator creator = newSwaggerSpecCreator(getAccessibleConfig(), getRequest());
         return creator.createSwaggerSpecMap(swaggerOption, (pathsMap, definitionsMap, tagsList) -> {
-            setupSwaggerPathMap(pathsMap, definitionsMap, tagsList, swaggerOption);
+            setupSwaggerPathsMap(pathsMap, definitionsMap, tagsList, swaggerOption);
         });
     }
 
@@ -148,33 +148,33 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                    Swagger Path Map
     //                                                                    ================
-    protected void setupSwaggerPathMap(Map<String, Map<String, Object>> pathsMap // map of top-level paths
+    protected void setupSwaggerPathsMap(Map<String, Map<String, Object>> pathsMap // map of top-level paths
             , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
             , List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) { // top-level tags
-        final SwaggerSpecPathSetupper pathSetupper = createSwaggerSpecPathSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
-        pathSetupper.setupSwaggerPathMap(generateActionDocMetaList());
+        final SwaggerSpecPathsSetupper pathsSetupper = createSwaggerSpecPathsSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
+        pathsSetupper.setupSwaggerPathsMap(generateActionDocMetaList());
     }
 
     // -----------------------------------------------------
     //                                         Path Setupper
     //                                         -------------
-    protected SwaggerSpecPathSetupper createSwaggerSpecPathSetupper(Map<String, Map<String, Object>> pathsMap,
+    protected SwaggerSpecPathsSetupper createSwaggerSpecPathsSetupper(Map<String, Map<String, Object>> pathsMap,
             Map<String, Map<String, Object>> definitionsMap, List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) {
         // prepare mutable output (registered in setupper) here
-        final SwaggerSpecPathMutableOutput pathMutableOutput = new SwaggerSpecPathMutableOutput(pathsMap, definitionsMap, tagsList);
+        final SwaggerSpecPathsMutableOutput pathMutableOutput = new SwaggerSpecPathsMutableOutput(pathsMap, definitionsMap, tagsList);
 
         // prepare resources for setup here
         final RealJsonEngine swaggeruseJsonEngine = createJsonEngine();
         final JsonControlMeta appJsonControlMeta = getAppJsonControlMeta();
         final List<Class<?>> nativeDataTypeList = dataNativeTypeProvider.provideNativeDataTypeList();
 
-        return newSwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
+        return newSwaggerSpecPathsSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
     }
 
-    protected SwaggerSpecPathSetupper newSwaggerSpecPathSetupper(SwaggerSpecPathMutableOutput pathMutableOutput,
+    protected SwaggerSpecPathsSetupper newSwaggerSpecPathsSetupper(SwaggerSpecPathsMutableOutput pathMutableOutput,
             SwaggerOption swaggerOption, RealJsonEngine swaggeruseJsonEngine, JsonControlMeta appJsonControlMeta,
             List<Class<?>> nativeDataTypeList) {
-        return new SwaggerSpecPathSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
+        return new SwaggerSpecPathsSetupper(pathMutableOutput, swaggerOption, swaggeruseJsonEngine, appJsonControlMeta, nativeDataTypeList);
     }
 
     // -----------------------------------------------------

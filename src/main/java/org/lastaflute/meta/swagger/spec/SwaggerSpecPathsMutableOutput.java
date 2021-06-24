@@ -23,7 +23,7 @@ import java.util.Map;
  * @author jflute
  * @since 0.5.1 (2021/06/23 Wedenesday at roppongi japanese)
  */
-public class SwaggerSpecPathMutableOutput {
+public class SwaggerSpecPathsMutableOutput {
 
     // ===================================================================================
     //                                                                           Attribute
@@ -36,7 +36,7 @@ public class SwaggerSpecPathMutableOutput {
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public SwaggerSpecPathMutableOutput(Map<String, Map<String, Object>> pathsMap // map of top-level paths
+    public SwaggerSpecPathsMutableOutput(Map<String, Map<String, Object>> pathsMap // map of top-level paths
             , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
             , List<Map<String, Object>> tagsList) { // top-level tags
         this.pathsMap = pathsMap;

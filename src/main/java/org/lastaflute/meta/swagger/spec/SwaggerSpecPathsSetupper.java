@@ -55,7 +55,7 @@ import org.lastaflute.web.response.XmlResponse;
  * @author jflute
  * @since 0.5.1 split from SwaggerGenerator (2021/06/23 Wednesday at roppongi japanese)
  */
-public class SwaggerSpecPathSetupper {
+public class SwaggerSpecPathsSetupper {
 
     // ===================================================================================
     //                                                                           Attribute
@@ -88,7 +88,7 @@ public class SwaggerSpecPathSetupper {
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public SwaggerSpecPathSetupper(SwaggerSpecPathMutableOutput pathMutableOutput, SwaggerOption swaggerOption,
+    public SwaggerSpecPathsSetupper(SwaggerSpecPathsMutableOutput pathMutableOutput, SwaggerOption swaggerOption,
             RealJsonEngine swaggeruseJsonEngine, JsonControlMeta appJsonControlMeta, List<Class<?>> nativeDataTypeList) {
         // #hope jflute keep pathMutableOutput and handle them by output object (2021/06/23)
         this.pathsMap = pathMutableOutput.getPathsMap();
@@ -223,7 +223,7 @@ public class SwaggerSpecPathSetupper {
     //   }
     // },
     //
-    public void setupSwaggerPathMap(List<ActionDocMeta> actionDocMetaList) { // top-level tags
+    public void setupSwaggerPathsMap(List<ActionDocMeta> actionDocMetaList) { // top-level tags
         // output this process is registration of mutable attributes
         actionDocMetaList.stream().forEach(actiondocMeta -> {
             doSetupSwaggerPathMap(actiondocMeta);
