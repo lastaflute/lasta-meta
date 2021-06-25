@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 
 import org.lastaflute.core.util.Lato;
+import org.lastaflute.web.ruts.config.ActionExecute;
 
 /**
  * The document meta of action, per execute method.
@@ -40,6 +41,7 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                            Class Item
     //                                            ----------
+    // #hope jflute rename to actionType (2021/06/25)
     /** The type declaring the execute method. e.g. org.docksidestage.app.web.sea.SeaAction.class (NotNull: after setup) */
     private transient Class<?> type; // exclude with gson serialize.
 
@@ -64,6 +66,9 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                           Method Item
     //                                           -----------
+    /** The object of the execute method. (NotNull: after setup) */
+    private transient ActionExecute actionExecute; // exclude with gson serialize.
+
     /** The method name of action execute. e.g. org.docksidestage.app.web.sea.SeaAction@land() (NotNull: after setup) */
     private String methodName; // contains HTTP method if RESTful e.g. "get$index"
 
@@ -125,7 +130,7 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                            Class Item
     //                                            ----------
-    public Class<?> getType() {
+    public Class<?> getType() { // means action type
         return type;
     }
 
@@ -179,6 +184,14 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                           Method Item
     //                                           -----------
+    public ActionExecute getActionExecute() {
+        return actionExecute;
+    }
+
+    public void setActionExecute(ActionExecute actionExecute) {
+        this.actionExecute = actionExecute;
+    }
+
     public String getMethodName() {
         return methodName;
     }

@@ -140,7 +140,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     //                                                                      Action DocMeta
     //                                                                      ==============
     protected ActionDocMeta createActionDocMeta(ActionExecute execute) {
-        final ActionDocMeta actionDocMeta = new ActionDocMeta();
+        final ActionDocMeta actionDocMeta = new ActionDocMeta(); // per execute method
         final Class<?> actionClass = execute.getActionMapping().getActionDef().getComponentClass();
         final UrlChain urlChain = new UrlChain(actionClass);
         final String urlPattern = execute.getPreparedUrlPattern().getResolvedUrlPattern();
@@ -176,6 +176,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         }).collect(Collectors.toList()));
 
         // method item
+        actionDocMeta.setActionExecute(execute);
         actionDocMeta.setMethodName(executeMethod.getName());
 
         // annotation item

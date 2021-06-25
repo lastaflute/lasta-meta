@@ -15,8 +15,6 @@
  */
 package org.lastaflute.meta.swagger.spec;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,15 +38,17 @@ import org.lastaflute.meta.swagger.spec.parts.annotation.SwaggerSpecAnnotationHa
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataType;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataTypeHandler;
 import org.lastaflute.meta.swagger.spec.parts.defaultvalue.SwaggerSpecDefaultValueHandler;
+import org.lastaflute.meta.swagger.spec.parts.definition.SwaggerSpecDefinitionHandler;
+import org.lastaflute.meta.swagger.spec.parts.encoding.SwaggerSpecEncodingHandler;
 import org.lastaflute.meta.swagger.spec.parts.enumtype.SwaggerSpecEnumHandler;
 import org.lastaflute.meta.swagger.spec.parts.httpmethod.SwaggerSpecHttpMethodHandler;
+import org.lastaflute.meta.swagger.spec.parts.produces.SwaggerSpecProducesHandler;
+import org.lastaflute.meta.swagger.spec.parts.property.SwaggerSpecPropertyHandler;
+import org.lastaflute.meta.swagger.spec.zone.form.SwaggerSpecFormSetupper;
+import org.lastaflute.meta.swagger.spec.zone.jsonbody.SwaggerSpecJsonBodySetupper;
+import org.lastaflute.meta.swagger.spec.zone.responses.SwaggerSpecResponsesSetupper;
 import org.lastaflute.web.api.JsonParameter;
 import org.lastaflute.web.response.ActionResponse;
-import org.lastaflute.web.response.ApiResponse;
-import org.lastaflute.web.response.HtmlResponse;
-import org.lastaflute.web.response.JsonResponse;
-import org.lastaflute.web.response.StreamResponse;
-import org.lastaflute.web.response.XmlResponse;
 
 /**
  * @author p1us2er0
@@ -84,6 +84,11 @@ public class SwaggerSpecPathsSetupper {
     protected final SwaggerSpecDataTypeHandler dataTypeHandler;
     protected final SwaggerSpecDefaultValueHandler defaultValueHandler;
     protected final SwaggerSpecHttpMethodHandler httpMethodHandler;
+    protected final SwaggerSpecPropertyHandler propertyHandler;
+
+    protected final SwaggerSpecDefinitionHandler definitionHandler;
+    protected final SwaggerSpecEncodingHandler encodingHandler;
+    protected final SwaggerSpecProducesHandler producesHandler;
 
     // ===================================================================================
     //                                                                         Constructor
@@ -105,6 +110,11 @@ public class SwaggerSpecPathsSetupper {
         this.dataTypeHandler = newSwaggerSpecDataTypeHandler(appJsonControlMeta);
         this.defaultValueHandler = newSwaggerSpecDefaultValueHandler(dataTypeHandler, enumHandler);
         this.httpMethodHandler = newSwaggerSpecHttpMethodHandler(swaggerOption);
+        this.propertyHandler = newSwaggerSpecPropertyHandler(annotationHandler);
+
+        this.definitionHandler = newSwaggerSpecDefinitionHandler();
+        this.encodingHandler = newSwaggerSpecEncodingHandler();
+        this.producesHandler = newSwaggerSpecProducesHandler(dataTypeHandler);
     }
 
     protected SwaggerSpecAnnotationHandler newSwaggerSpecAnnotationHandler() {
@@ -126,6 +136,22 @@ public class SwaggerSpecPathsSetupper {
 
     protected SwaggerSpecHttpMethodHandler newSwaggerSpecHttpMethodHandler(SwaggerOption swaggerOption) {
         return new SwaggerSpecHttpMethodHandler(swaggerOption);
+    }
+
+    protected SwaggerSpecPropertyHandler newSwaggerSpecPropertyHandler(SwaggerSpecAnnotationHandler annotationHandler) {
+        return new SwaggerSpecPropertyHandler(annotationHandler);
+    }
+
+    protected SwaggerSpecDefinitionHandler newSwaggerSpecDefinitionHandler() {
+        return new SwaggerSpecDefinitionHandler();
+    }
+
+    protected SwaggerSpecEncodingHandler newSwaggerSpecEncodingHandler() {
+        return new SwaggerSpecEncodingHandler();
+    }
+
+    protected SwaggerSpecProducesHandler newSwaggerSpecProducesHandler(SwaggerSpecDataTypeHandler dataTypeHandler) {
+        return new SwaggerSpecProducesHandler(dataTypeHandler);
     }
 
     // ===================================================================================
@@ -242,13 +268,13 @@ public class SwaggerSpecPathsSetupper {
         // "/signin/": {
         //   "post": {
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
-        final Map<String, Object> swaggerHttpMethodMap = DfCollectionUtil.newLinkedHashMap();
-        pathsMap.get(actionUrl).put(httpMethod, swaggerHttpMethodMap);
+        final Map<String, Object> httpMethodContentMap = DfCollectionUtil.newLinkedHashMap();
+        pathsMap.get(actionUrl).put(httpMethod, httpMethodContentMap);
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
-        swaggerHttpMethodMap.put("summary", actionDocMeta.getDescription());
-        swaggerHttpMethodMap.put("description", actionDocMeta.getDescription());
+        httpMethodContentMap.put("summary", actionDocMeta.getDescription());
+        httpMethodContentMap.put("description", actionDocMeta.getDescription());
 
         //     "parameters": [
         //       {
@@ -285,109 +311,23 @@ public class SwaggerSpecPathsSetupper {
                 //       "application/x-www-form-urlencoded"
                 //     ],
                 //     "parameters": [
-                //       {
-                //         "name": "account",
-                //         "type": "string",
-                //         "in": "formData"
-                //       },
                 //       ...
                 //     ],
-                parameterMapList.addAll(actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(typeDocMeta -> {
-                    final Map<String, Object> parameterMap = toParameterMap(typeDocMeta);
-                    // TODO p1us2er0 mapping to string until analysis is correct (2018/10/03)
-                    if (parameterMap.containsKey("$ref")) {
-                        parameterMap.remove("$ref");
-                        parameterMap.put("type", "string");
-                    }
-                    if (parameterMap.containsKey("items")) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> items = (Map<String, Object>) parameterMap.get("items");
-                        if (items.containsKey("$ref")) {
-                            items.remove("$ref");
-                            items.put("type", "string");
-                        }
-                        if ("object".equals(items.get("type"))) {
-                            items.put("type", "string");
-                        }
-                    }
-                    if ("object".equals(parameterMap.get("type"))) {
-                        parameterMap.put("type", "string");
-                    }
-                    parameterMap.put("name", typeDocMeta.getPublicName());
-                    parameterMap.put("in", Arrays.asList("get", "delete").contains(httpMethod) ? "query" : "formData");
-                    if (parameterMap.containsKey("example")) {
-                        parameterMap.put("default", parameterMap.get("example"));
-                        parameterMap.remove("example");
-                    }
-                    parameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
-                        return annotationHandler.getRequiredAnnotationList()
-                                .stream()
-                                .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
-                    }));
-                    return parameterMap;
-                }).collect(Collectors.toList()));
-                if (parameterMapList.stream().anyMatch(parameterMap -> "formData".equals(parameterMap.get("in")))) {
-                    if (parameterMapList.stream().anyMatch(parameterMap -> "file".equals(parameterMap.get("type")))) {
-                        swaggerHttpMethodMap.put("consumes", Arrays.asList("multipart/form-data"));
-                    } else {
-                        swaggerHttpMethodMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
-                    }
-                }
+                prepareForm(actionDocMeta, httpMethod, httpMethodContentMap, parameterMapList);
             } else {
                 //     "consumes": [
                 //       "application/json"
                 //     ],
-                swaggerHttpMethodMap.put("consumes", Arrays.asList("application/json"));
-                final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
-                parameterMap.put("name", actionDocMeta.getFormTypeDocMeta().getSimpleTypeName());
-                parameterMap.put("in", "body");
-                parameterMap.put("required", true);
-                final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
-                schema.put("type", "object");
-                final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(actionDocMeta.getFormTypeDocMeta());
-                if (!requiredPropertyNameList.isEmpty()) {
-                    schema.put("required", requiredPropertyNameList);
-                }
-                schema.put("properties", actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(propertyDocMeta -> {
-                    return toParameterMap(propertyDocMeta);
-                }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-                    final LinkedHashMap<String, Object> propertyMap = DfCollectionUtil.newLinkedHashMap(value);
-                    propertyMap.remove("name");
-                    return propertyMap;
-                }, (u, v) -> v, LinkedHashMap::new)));
-
-                // Form or Body's definition
-                //   "definitions": {
-                //     "org.docksidestage.app.web.signin.SigninBody": {
-                definitionsMap.put(derivedDefinitionName(actionDocMeta.getFormTypeDocMeta()), schema);
-
-                //         "schema": {
-                //           "$ref": "#/definitions/org.docksidestage.app.web.signin.SigninBody"
-                //         }
-                // or
-                //         "schema": {
-                //           "type": "array",
-                //           "items": {
-                //             "$ref": "#/definitions/org.docksidestage.app.web.wx.remogen.bean.simple.SuperSimpleBody"
-                //           }
-                //         }
-                LinkedHashMap<String, String> schemaMap =
-                        DfCollectionUtil.newLinkedHashMap("$ref", prepareSwaggerMapRefDefinitions(actionDocMeta));
-                if (!Iterable.class.isAssignableFrom(actionDocMeta.getFormTypeDocMeta().getType())) {
-                    parameterMap.put("schema", schemaMap);
-                } else {
-                    parameterMap.put("schema", DfCollectionUtil.newLinkedHashMap("type", "array", "items", schemaMap));
-                }
-                parameterMapList.add(parameterMap);
+                prepareJsonBody(actionDocMeta, httpMethodContentMap, parameterMapList);
             }
         }
         // Query, Header, Body, Form
-        swaggerHttpMethodMap.put("parameters", parameterMapList);
+        httpMethodContentMap.put("parameters", parameterMapList);
 
         //     "tags": [
         //       "signin"
         //     ],
-        swaggerHttpMethodMap.put("tags", prepareSwaggerMapTags(actionDocMeta));
+        httpMethodContentMap.put("tags", prepareSwaggerMapTags(actionDocMeta));
         final String tag = DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/");
 
         // reflect the tags to top-level tags
@@ -397,17 +337,63 @@ public class SwaggerSpecPathsSetupper {
 
         //     "responses": {
         //       ...
-        prepareSwaggerMapResponseMap(swaggerHttpMethodMap, actionDocMeta);
+        prepareResponses(httpMethodContentMap, actionDocMeta);
 
         if (!optionalPathNameList.isEmpty()) {
             doSetupSwaggerPathsMapForOptionalPath(actionDocMeta, optionalPathNameList);
         }
     }
 
+    // -----------------------------------------------------
+    //                                                 Form
+    //                                                ------
+    protected void prepareForm(ActionDocMeta actionDocMeta, String httpMethod, Map<String, Object> httpMethodContentMap,
+            List<Map<String, Object>> parameterMapList) {
+        //     "consumes": [
+        //       "application/x-www-form-urlencoded"
+        //     ],
+        //     "parameters": [
+        //       {
+        //         "name": "account",
+        //         "type": "string",
+        //         "in": "formData"
+        //       },
+        //       ...
+        //     ],
+        final SwaggerSpecFormSetupper formSetupper = new SwaggerSpecFormSetupper(annotationHandler, meta -> toParameterMap(meta));
+        formSetupper.prepareForm(actionDocMeta, httpMethod, httpMethodContentMap, parameterMapList);
+    }
+
+    // -----------------------------------------------------
+    //                                             JSON Body
+    //                                             ---------
+    protected void prepareJsonBody(ActionDocMeta actionDocMeta, Map<String, Object> httpMethodContentMap,
+            List<Map<String, Object>> parameterMapList) {
+        //     "consumes": [
+        //       "application/json"
+        //     ],
+        //     ...
+        //     "definitions": {
+        //     ...
+        final SwaggerSpecJsonBodySetupper jsonBodySetupper = new SwaggerSpecJsonBodySetupper(annotationHandler, propertyHandler,
+                definitionHandler, encodingHandler, meta -> toParameterMap(meta));
+        jsonBodySetupper.prepareJsonBody(actionDocMeta, definitionsMap, httpMethodContentMap, parameterMapList);
+    }
+
+    // -----------------------------------------------------
+    //                                                 Tags
+    //                                                ------
+    protected List<String> prepareSwaggerMapTags(ActionDocMeta actiondocMeta) {
+        return Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/"));
+    }
+
+    // -----------------------------------------------------
+    //                                     for Optional Path
+    //                                     -----------------
     protected void doSetupSwaggerPathsMapForOptionalPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
         final String actionUrl = actionDocMeta.getUrl();
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
-        String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
+        final String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
 
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
             List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
@@ -429,19 +415,14 @@ public class SwaggerSpecPathsSetupper {
             swaggerHttpMethodMap.put("parameters", parameterMapList);
             pathsMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
         });
-        Map<String, Object> swaggerUrlMap = pathsMap.remove(actionUrl);
+        final Map<String, Object> swaggerUrlMap = pathsMap.remove(actionUrl);
         pathsMap.put(actionUrl, swaggerUrlMap);
     }
 
-    protected String prepareSwaggerMapRefDefinitions(ActionDocMeta actiondocMeta) {
-        return "#/definitions/" + encode(derivedDefinitionName(actiondocMeta.getFormTypeDocMeta()));
-    }
-
-    protected List<String> prepareSwaggerMapTags(ActionDocMeta actiondocMeta) {
-        return Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/"));
-    }
-
-    protected void prepareSwaggerMapResponseMap(Map<String, Object> swaggerHttpMethodMap, ActionDocMeta actiondocMeta) {
+    // -----------------------------------------------------
+    //                                             Responses
+    //                                             ---------
+    protected void prepareResponses(Map<String, Object> swaggerHttpMethodMap, ActionDocMeta actionDocMeta) {
         //     "responses": {
         //       "200": {
         //         "description": "success",
@@ -453,37 +434,19 @@ public class SwaggerSpecPathsSetupper {
         //         "description": "client error"
         //       }
         //     },
-        final Map<String, Object> responseMap = DfCollectionUtil.newLinkedHashMap();
-        swaggerHttpMethodMap.put("responses", responseMap);
-        derivedProduces(actiondocMeta).ifPresent(produces -> {
-            swaggerHttpMethodMap.put("produces", produces);
+        final SwaggerSpecResponsesSetupper responsesSetupper = new SwaggerSpecResponsesSetupper(swaggerOption, producesHandler, meta -> {
+            return toParameterMap(meta);
         });
-        final Map<String, Object> response = DfCollectionUtil.newLinkedHashMap("description", "success");
-        final TypeDocMeta returnTypeDocMeta = actiondocMeta.getReturnTypeDocMeta();
-        if (!Arrays.asList(HtmlResponse.class, StreamResponse.class)
-                .stream()
-                .anyMatch(clazz -> clazz.isAssignableFrom(returnTypeDocMeta.getType()))
-                && !Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
-            final Map<String, Object> parameterMap = toParameterMap(returnTypeDocMeta);
-            parameterMap.remove("name");
-            parameterMap.remove("required");
-            if (parameterMap.containsKey("schema")) {
-                response.putAll(parameterMap);
-            } else {
-                response.put("schema", parameterMap);
-            }
-        }
-        responseMap.put("200", response);
-        if (ApiResponse.class.isAssignableFrom(returnTypeDocMeta.getType())) {
-            responseMap.put("400", DfCollectionUtil.newLinkedHashMap("description", "client error"));
-        }
+        responsesSetupper.prepareResponses(swaggerHttpMethodMap, actionDocMeta);
     }
 
     // ===================================================================================
     //                                                                       Parameter Map
     //                                                                       =============
+    // #hope jflute split this to zone (2021/06/25)
     protected Map<String, Object> toParameterMap(TypeDocMeta typeDocMeta) {
-        final Map<Class<?>, SwaggerSpecDataType> typeMap = createSwaggerDataTypeMap();
+        // #hope jflute should be cached? because of many calls (2021/06/23)
+        final Map<Class<?>, SwaggerSpecDataType> typeMap = dataTypeHandler.createSwaggerDataTypeMap();
         final Class<?> keepType = typeDocMeta.getType();
         if (typeDocMeta.getGenericType() != null && (ActionResponse.class.isAssignableFrom(typeDocMeta.getType())
                 || OptionalThing.class.isAssignableFrom(typeDocMeta.getType()))) {
@@ -599,11 +562,11 @@ public class SwaggerSpecPathsSetupper {
         //     "org.docksidestage.app.web.base.paging.SearchPagingResult\u003corg.docksidestage.app.web.products.ProductsRowResult\u003e": {
         //       "type": "object",
         //       ...
-        String derivedDefinitionName = derivedDefinitionName(typeDocMeta);
+        String derivedDefinitionName = definitionHandler.deriveDefinitionName(typeDocMeta);
         if (!definitionsMap.containsKey(derivedDefinitionName)) {
             final Map<String, Object> schema = DfCollectionUtil.newLinkedHashMap();
             schema.put("type", "object");
-            final List<String> requiredPropertyNameList = derivedRequiredPropertyNameList(typeDocMeta);
+            final List<String> requiredPropertyNameList = propertyHandler.deriveRequiredPropertyNameList(typeDocMeta);
             if (!requiredPropertyNameList.isEmpty()) {
                 schema.put("required", requiredPropertyNameList);
             }
@@ -618,65 +581,6 @@ public class SwaggerSpecPathsSetupper {
 
             definitionsMap.put(derivedDefinitionName, schema);
         }
-        return "#/definitions/" + encode(derivedDefinitionName);
-    }
-
-    protected List<String> derivedRequiredPropertyNameList(TypeDocMeta typeDocMeta) {
-        return typeDocMeta.getNestTypeDocMetaList().stream().filter(nesttypeDocMeta -> {
-            return nesttypeDocMeta.getAnnotationTypeList().stream().anyMatch(annotationType -> {
-                return annotationHandler.getRequiredAnnotationList()
-                        .stream()
-                        .anyMatch(requiredAnnotation -> requiredAnnotation.isAssignableFrom(annotationType.getClass()));
-            });
-        }).map(nesttypeDocMeta -> nesttypeDocMeta.getPublicName()).collect(Collectors.toList());
-    }
-
-    protected String derivedDefinitionName(TypeDocMeta typeDocMeta) {
-        if (typeDocMeta.getTypeName().matches("^[^<]+<(.+)>$")) {
-            return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1").replaceAll(" ", "");
-        }
-        return typeDocMeta.getTypeName().replaceAll(" ", "");
-    }
-
-    protected OptionalThing<List<String>> derivedProduces(ActionDocMeta actiondocMeta) {
-        if (Arrays.asList(void.class, Void.class).contains(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
-            return OptionalThing.empty();
-        }
-        if (createSwaggerDataTypeMap().containsKey(actiondocMeta.getReturnTypeDocMeta().getGenericType())) {
-            return OptionalThing.of(Arrays.asList("text/plain;charset=UTF-8"));
-        }
-        final Map<Class<?>, List<String>> produceMap = DfCollectionUtil.newHashMap();
-        produceMap.put(JsonResponse.class, Arrays.asList("application/json"));
-        produceMap.put(XmlResponse.class, Arrays.asList("application/xml"));
-        produceMap.put(HtmlResponse.class, Arrays.asList("text/html"));
-        produceMap.put(StreamResponse.class, Arrays.asList("application/octet-stream"));
-        final Class<?> produceType = actiondocMeta.getReturnTypeDocMeta().getType();
-        final List<String> produceList = produceMap.get(produceType);
-        return OptionalThing.ofNullable(produceList, () -> {
-            String msg = "Not found the produce: type=" + produceType + ", keys=" + produceMap.keySet();
-            throw new IllegalStateException(msg);
-        });
-    }
-
-    // ===================================================================================
-    //                                                                    Swagger DataType
-    //                                                                    ================
-    protected Map<Class<?>, SwaggerSpecDataType> createSwaggerDataTypeMap() {
-        // #hope jflute should be cached? because of many calls (2021/06/23)
-        return dataTypeHandler.createSwaggerDataTypeMap();
-    }
-
-    // ===================================================================================
-    //                                                                        Assist Logic
-    //                                                                        ============
-    // MUST be in the form of a URI. p1us2er0  (2021/06/08)
-    // https://swagger.io/docs/specification/using-ref/
-    // https://spec.openapis.org/oas/v3.1.0#reference-object
-    protected String encode(String value) {
-        try {
-            return URLEncoder.encode(value, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalArgumentException(e);
-        }
+        return "#/definitions/" + encodingHandler.encode(derivedDefinitionName);
     }
 }

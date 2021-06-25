@@ -15,6 +15,7 @@
  */
 package org.lastaflute.meta;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -24,6 +25,7 @@ import java.util.function.Predicate;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
+import org.lastaflute.web.api.BusinessFailureMapping;
 
 /**
  * @author p1us2er0
@@ -34,10 +36,27 @@ public class SwaggerOption {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    // -----------------------------------------------------
+    //                                                 Basic
+    //                                                 -----
     protected Function<String, String> basePathLambda;
+
+    // -----------------------------------------------------
+    //                                                Action
+    //                                                ------
     protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda;
     protected Predicate<ActionDocMeta> targetActionDocMetaLambda;
+    protected Function<ActionDocMeta, Integer> successHttpStatusLambda;
+    protected Function<ActionDocMeta, SwaggerFailureHttpStatusResource> failureHttpStatusLambda;
+
+    // -----------------------------------------------------
+    //                                                Header
+    //                                                ------
     protected List<Map<String, Object>> headerParameterList;
+
+    // -----------------------------------------------------
+    //                                              Security
+    //                                              --------
     protected List<Map<String, Object>> securityDefinitionList;
 
     // ===================================================================================
@@ -54,21 +73,98 @@ public class SwaggerOption {
         this.basePathLambda = oneArgLambda;
     }
 
+    // ===================================================================================
+    //                                                                              Action
+    //                                                                              ======
+    // -----------------------------------------------------
+    //                                      Form HTTP Method
+    //                                      ----------------
     /**
-     * Derive form http method by filter. <br>
+     * Derive form http method by callback. <br>
      * In the following cases, the following judgment has priority. <br>
      * <ul>
      * <li>methods that use the HTTP method restriction style (get$index, post$index).</li>
      * <li>Request is body (will be post).</li>
      * </ul>
-     * @param oneArgLambda The callback of base path filter. (NotNull)
+     * @param oneArgLambda The callback of http method deriving. (NotNull)
      */
     public void derivedDefaultFormHttpMethod(Function<ActionDocMeta, String> oneArgLambda) {
         this.defaultFormHttpMethodLambda = oneArgLambda;
     }
 
+    // -----------------------------------------------------
+    //                                         Action Target
+    //                                         -------------
+    /**
+     * Derive action execute that can be target for swagger-spec by filter.
+     * <pre>
+     * op.derivedTargetActionDocMeta(meta -&gt; {
+     *     return ...; // true if the action execute is target
+     * });
+     * </pre>
+     * @param oneArgLambda The callback of target to determine it. (NotNull)
+     */
     public void derivedTargetActionDocMeta(Predicate<ActionDocMeta> oneArgLambda) {
         this.targetActionDocMetaLambda = oneArgLambda;
+    }
+
+    // -----------------------------------------------------
+    //                                           HTTP Status
+    //                                           -----------
+    /**
+     * Derive success HTTP status for the execute method by filter.
+     * <pre>
+     * op.derivedSuccessHttpStatus(meta -&gt; {
+     *     return ...; // e.g. 200 or 201 or 204
+     * });
+     * </pre>
+     * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
+     */
+    public void derivedSuccessHttpStatus(Function<ActionDocMeta, Integer> oneArgLambda) {
+        this.successHttpStatusLambda = oneArgLambda;
+    }
+
+    /**
+     * Derive success HTTP status for the execute method by filter.
+     * <pre>
+     * op.derivedFailureHttpStatus(meta -&gt; {
+     *     SwaggerFailureHttpStatusResource resource = new SwaggerFailureHttpStatusResource();
+     *     resource.addMapping(404, EntityAlreadyDeletedException.class);
+     *     return resource;
+     * });
+     * </pre>
+     * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
+     */
+    public void derivedFailureHttpStatus(Function<ActionDocMeta, SwaggerFailureHttpStatusResource> oneArgLambda) {
+        this.failureHttpStatusLambda = oneArgLambda;
+    }
+
+    /**
+     * @author jflute
+     */
+    public static class SwaggerFailureHttpStatusResource {
+
+        protected final Map<Integer, List<Class<?>>> failureStatusCauseMap = DfCollectionUtil.newLinkedHashMap();
+
+        public void addMapping(int failureStatus, Class<?> causeType) {
+            List<Class<?>> existingList = failureStatusCauseMap.get(failureStatus);
+            if (existingList == null) {
+                existingList = DfCollectionUtil.newArrayList();
+                failureStatusCauseMap.put(failureStatus, existingList);
+            }
+            existingList.add(causeType);
+        }
+
+        public void acceptFailureStatusMap(BusinessFailureMapping<Integer> failureMapping) { // for e.g. faicli pattern
+            final Map<Class<?>, Integer> failureMap = failureMapping.getFailureMap();
+            failureMap.forEach((causeType, httpStatus) -> { // translate
+                addMapping(httpStatus, causeType);
+            });
+        }
+
+        public Map<Integer, List<Class<?>>> getFailureStatusCauseMap() {
+            return Collections.unmodifiableMap(failureStatusCauseMap);
+        }
     }
 
     // ===================================================================================
@@ -91,6 +187,7 @@ public class SwaggerOption {
     }
 
     protected Map<String, Object> createHeaderParameterMap(String name, String value) {
+        // #hope jflute move this logic depending to swagger-spec to setupper (2021/06/25)
         final Map<String, Object> parameterMap = DfCollectionUtil.newLinkedHashMap();
         parameterMap.put("in", "header");
         parameterMap.put("type", "string");
@@ -142,6 +239,7 @@ public class SwaggerOption {
     }
 
     protected Map<String, Object> createSecurityDefinitionMap(String name) {
+        // #hope jflute move this logic depending to swagger-spec to setupper (2021/06/25)
         final Map<String, Object> definitionMap = DfCollectionUtil.newLinkedHashMap();
         definitionMap.put("in", "header");
         definitionMap.put("type", "apiKey");
@@ -174,32 +272,57 @@ public class SwaggerOption {
     // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
+    // -----------------------------------------------------
+    //                                                 Basic
+    //                                                 -----
     public OptionalThing<Function<String, String>> getDerivedBasePath() {
         return OptionalThing.ofNullable(basePathLambda, () -> {
-            throw new IllegalStateException("Not set derivedBasePathLamda.");
+            throw new IllegalStateException("Not set basePathLambda.");
         });
     }
 
+    // -----------------------------------------------------
+    //                                                Action
+    //                                                ------
     public Function<ActionDocMeta, String> getDefaultFormHttpMethod() {
         if (defaultFormHttpMethodLambda == null) {
-        	return (swaggerOption) -> "get";
+            // #hope jflute move this default logic to setupper (2021/06/25)
+            return meta -> "get"; // as default
         }
         return defaultFormHttpMethodLambda;
     }
 
     public Predicate<ActionDocMeta> getTargetActionDocMeta() {
         if (targetActionDocMetaLambda == null) {
-        	return (actionDocMeta) -> true;
+            return (actionDocMeta) -> true;
         }
         return targetActionDocMetaLambda;
     }
 
+    public OptionalThing<Function<ActionDocMeta, Integer>> getSuccessHttpStatusLambda() {
+        return OptionalThing.ofNullable(successHttpStatusLambda, () -> {
+            throw new IllegalStateException("Not set successHttpStatusLambda.");
+        });
+    }
+
+    public OptionalThing<Function<ActionDocMeta, SwaggerFailureHttpStatusResource>> getFailureHttpStatusLambda() {
+        return OptionalThing.ofNullable(failureHttpStatusLambda, () -> {
+            throw new IllegalStateException("Not set failureHttpStatusLambda.");
+        });
+    }
+
+    // -----------------------------------------------------
+    //                                                Header
+    //                                                ------
     public OptionalThing<List<Map<String, Object>>> getHeaderParameterList() {
         return OptionalThing.ofNullable(headerParameterList, () -> {
             throw new IllegalStateException("Not set headerParameterList.");
         });
     }
 
+    // -----------------------------------------------------
+    //                                              Security
+    //                                              --------
     public OptionalThing<List<Map<String, Object>>> getSecurityDefinitionList() {
         return OptionalThing.ofNullable(securityDefinitionList, () -> {
             throw new IllegalStateException("Not set securityDefinitionList.");
