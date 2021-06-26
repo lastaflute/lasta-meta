@@ -45,9 +45,11 @@ public class ActionPropertyFieldAnalyzer {
     // ===================================================================================
     //                                                                          Definition
     //                                                                          ==========
-    protected static final List<String> TARGET_SUFFIX_LIST;
+    protected static final List<String> ROOT_TARGET_SUFFIX_LIST;
     static {
-        TARGET_SUFFIX_LIST = Arrays.asList("Form", "Body", "Bean", "Result");
+        // basically Part is defined as inner class however we cannot help allowing independent file
+        // actually the case exists in real project by jflute (2021/06/26)
+        ROOT_TARGET_SUFFIX_LIST = Arrays.asList("Form", "Body", "Bean", "Result", "Part");
     }
 
     // ===================================================================================
@@ -270,7 +272,7 @@ public class ActionPropertyFieldAnalyzer {
     }
 
     protected List<String> getTargetTypeSuffixList() {
-        return TARGET_SUFFIX_LIST; // e.g. Form, Result
+        return ROOT_TARGET_SUFFIX_LIST; // e.g. Form, Result
     }
 
     protected boolean determineTargetSuffixResolvedClass(String fqcn, String suffix) {
