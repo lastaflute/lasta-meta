@@ -19,8 +19,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 import java.util.List;
 
-import org.lastaflute.meta.document.annotation.MetaAnnotationArranger;
-import org.lastaflute.meta.document.type.MetaTypeNameAdjuster;
+import org.lastaflute.meta.document.parts.annotation.MetaAnnotationArranger;
+import org.lastaflute.meta.document.parts.type.MetaTypeNameAdjuster;
 
 /**
  * @author p1us2er0
@@ -29,13 +29,13 @@ import org.lastaflute.meta.document.type.MetaTypeNameAdjuster;
  */
 public class BaseDocumentAnalyzer {
 
-    private final MetaTypeNameAdjuster metaTypeNameAdjuster = newMetaTypeNameAdjuster();
+    protected final MetaTypeNameAdjuster metaTypeNameAdjuster = newMetaTypeNameAdjuster();
 
     protected MetaTypeNameAdjuster newMetaTypeNameAdjuster() {
         return new MetaTypeNameAdjuster();
     }
 
-    private final MetaAnnotationArranger metaAnnotationArranger = newMetaAnnotationArranger();
+    protected final MetaAnnotationArranger metaAnnotationArranger = newMetaAnnotationArranger();
 
     protected MetaAnnotationArranger newMetaAnnotationArranger() {
         return new MetaAnnotationArranger(metaTypeNameAdjuster);

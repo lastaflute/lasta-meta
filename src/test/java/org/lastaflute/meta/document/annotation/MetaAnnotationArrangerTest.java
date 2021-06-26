@@ -9,8 +9,8 @@ import java.util.List;
 
 import org.dbflute.utflute.core.PlainTestCase;
 import org.hibernate.validator.constraints.Length;
-import org.lastaflute.meta.document.annotation.MetaAnnotationArranger;
-import org.lastaflute.meta.document.type.MetaTypeNameAdjuster;
+import org.lastaflute.meta.document.parts.annotation.MetaAnnotationArranger;
+import org.lastaflute.meta.document.parts.type.MetaTypeNameAdjuster;
 import org.lastaflute.meta.unit.mock.web.SeaForm;
 import org.lastaflute.web.validation.Required;
 

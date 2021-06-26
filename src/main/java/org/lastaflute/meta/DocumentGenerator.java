@@ -136,7 +136,7 @@ public class DocumentGenerator {
     }
 
     protected Map<String, Object> generateLastaDetailMap() {
-        final List<ActionDocMeta> actionDocMetaList = createActionDocumentAnalyzer().generateActionDocMetaList();
+        final List<ActionDocMeta> actionDocMetaList = createActionDocumentAnalyzer().analyzeAction();
         final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
         lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
         createJobDocumentAnalyzer().ifPresent(jobDocumentGenerator -> {

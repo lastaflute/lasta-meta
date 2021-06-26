@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.document.action;
+package org.lastaflute.meta.document.parts.action;
 
 import java.io.File;
 import java.io.IOException;

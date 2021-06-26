@@ -16,43 +16,28 @@
 package org.lastaflute.meta.document;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.lang.reflect.Parameter;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.dbflute.util.DfReflectionUtil;
-import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
-import org.dbflute.util.DfStringUtil;
-import org.lastaflute.core.json.JsonMappingOption.JsonFieldNaming;
-import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.util.ContainerUtil;
-import org.lastaflute.meta.document.action.ExecuteMethodCollector;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
-import org.lastaflute.meta.document.type.NativeDataTypeProvider;
+import org.lastaflute.meta.document.parts.action.ExecuteMethodCollector;
+import org.lastaflute.meta.document.parts.action.FormFieldNameAdjuster;
+import org.lastaflute.meta.document.parts.type.NativeDataTypeProvider;
+import org.lastaflute.meta.document.zone.formtype.ExecuteFormTypeAnalyzer;
+import org.lastaflute.meta.document.zone.parameter.ExecuteParameterAnalyzer;
+import org.lastaflute.meta.document.zone.returntype.ExecuteReturnTypeAnalyzer;
 import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
 import org.lastaflute.meta.sourceparser.SourceParserReflector;
-import org.lastaflute.meta.util.LaDocReflectionUtil;
 import org.lastaflute.web.UrlChain;
 import org.lastaflute.web.path.ActionPathResolver;
 import org.lastaflute.web.ruts.config.ActionExecute;
-
-import com.google.gson.FieldNamingPolicy;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**
@@ -61,20 +46,6 @@ import com.google.gson.FieldNamingPolicy;
  * @since 0.5.0-sp9 of UTFlute (2015/09/18 Friday)
  */
 public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
-
-    // ===================================================================================
-    //                                                                          Definition
-    //                                                                          ==========
-    /** list of suppressed fields, e.g. enhanced fields by JaCoCo. */
-    protected static final Set<String> SUPPRESSED_FIELD_SET;
-    static {
-        SUPPRESSED_FIELD_SET = DfCollectionUtil.newHashSet("$jacocoData");
-    }
-
-    protected static final List<String> TARGET_SUFFIX_LIST;
-    static {
-        TARGET_SUFFIX_LIST = Arrays.asList("Form", "Body", "Bean", "Result");
-    }
 
     // ===================================================================================
     //                                                                           Attribute
@@ -88,17 +59,10 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
-    protected final MetauseJsonEngineProvider metauseJsonEngineProvider = newMetauseJsonEngineProvider();
-
-    protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
-        return new MetauseJsonEngineProvider();
-    }
-
-    protected final NativeDataTypeProvider nativeDataTypeProvider = newDataNativeTypeProvider();
-
-    protected NativeDataTypeProvider newDataNativeTypeProvider() {
-        return new NativeDataTypeProvider();
-    }
+    // parts
+    protected final MetauseJsonEngineProvider metauseJsonEngineProvider;
+    protected final NativeDataTypeProvider nativeDataTypeProvider;
+    protected final FormFieldNameAdjuster formFieldNameAdjuster;
 
     // ===================================================================================
     //                                                                         Constructor
@@ -107,12 +71,29 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         this.srcDirList = srcDirList;
         this.depth = depth;
         this.sourceParserReflector = sourceParserReflector;
+
+        // parts
+        this.metauseJsonEngineProvider = newMetauseJsonEngineProvider();
+        this.nativeDataTypeProvider = newDataNativeTypeProvider();
+        this.formFieldNameAdjuster = newFormFieldNameAdjuster(metauseJsonEngineProvider);
+    }
+
+    protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
+        return new MetauseJsonEngineProvider();
+    }
+
+    protected NativeDataTypeProvider newDataNativeTypeProvider() {
+        return new NativeDataTypeProvider();
+    }
+
+    protected FormFieldNameAdjuster newFormFieldNameAdjuster(MetauseJsonEngineProvider metauseJsonEngineProvider) {
+        return new FormFieldNameAdjuster(metauseJsonEngineProvider);
     }
 
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
-    public List<ActionDocMeta> generateActionDocMetaList() { // the list is per execute method
+    public List<ActionDocMeta> analyzeAction() { // the list is per execute method
         return createExecuteMethodCollector().collectActionExecuteList().stream().map(execute -> {
             return createActionDocMeta(execute);
         }).collect(Collectors.toList());
@@ -125,14 +106,6 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     protected boolean exceptsActionExecute(ActionExecute actionExecute) { // may be overridden
-        if (suppressActionExecute(actionExecute)) { // for compatible
-            return true;
-        }
-        return false;
-    }
-
-    @Deprecated
-    protected boolean suppressActionExecute(ActionExecute actionExecute) {
         return false;
     }
 
@@ -142,27 +115,62 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     protected ActionDocMeta createActionDocMeta(ActionExecute execute) {
         final ActionDocMeta actionDocMeta = new ActionDocMeta(); // per execute method
         final Class<?> actionClass = execute.getActionMapping().getActionDef().getComponentClass();
+        final UrlChain urlChain = prepareUrlChain(execute, actionClass);
+
+        setupActionItem(actionDocMeta, actionClass, urlChain);
+
+        final Method executeMethod = execute.getExecuteMethod();
+        final Class<?> methodDeclaringClass = executeMethod.getDeclaringClass(); // basically same as componentClass
+
+        setupClassItem(actionDocMeta, methodDeclaringClass);
+        setupFieldItem(actionDocMeta, methodDeclaringClass);
+        setupMethodItem(actionDocMeta, execute, executeMethod);
+        setupAnnotationItem(actionDocMeta, executeMethod, methodDeclaringClass);
+        setupInOutItem(actionDocMeta, execute, executeMethod);
+
+        // extension item (url, return, comment...)
+        sourceParserReflector.ifPresent(sourceParserReflector -> {
+            sourceParserReflector.reflect(actionDocMeta, executeMethod);
+        });
+
+        return actionDocMeta;
+    }
+
+    protected UrlChain prepareUrlChain(ActionExecute execute, Class<?> actionClass) {
         final UrlChain urlChain = new UrlChain(actionClass);
         final String urlPattern = execute.getPreparedUrlPattern().getResolvedUrlPattern();
         if (!"index".equals(urlPattern)) {
             urlChain.moreUrl(urlPattern);
         }
+        return urlChain;
+    }
 
-        // action item
-        actionDocMeta.setUrl(getActionPathResolver().toActionUrl(actionClass, urlChain));
+    // -----------------------------------------------------
+    //                                          Action/Class
+    //                                          ------------
+    protected void setupActionItem(ActionDocMeta actionDocMeta, Class<?> actionClass, UrlChain urlChain) {
+        final ActionPathResolver actionPathResolver = ContainerUtil.getComponent(ActionPathResolver.class);
+        actionDocMeta.setUrl(actionPathResolver.toActionUrl(actionClass, urlChain));
+    }
 
-        // class item
-        final Method executeMethod = execute.getExecuteMethod();
-        final Class<?> methodDeclaringClass = executeMethod.getDeclaringClass(); // basically same as componentClass
+    protected void setupClassItem(ActionDocMeta actionDocMeta, Class<?> methodDeclaringClass) {
         actionDocMeta.setType(methodDeclaringClass);
         actionDocMeta.setTypeName(adjustTypeName(methodDeclaringClass));
         actionDocMeta.setSimpleTypeName(adjustSimpleTypeName(methodDeclaringClass));
+    }
 
-        // field item
+    // -----------------------------------------------------
+    //                                          Field/Method
+    //                                          ------------
+    protected void setupFieldItem(ActionDocMeta actionDocMeta, Class<?> methodDeclaringClass) {
+        // #thinking jflute does it contain private DI fields? needed? (2021/06/26)
         actionDocMeta.setFieldTypeDocMetaList(Arrays.stream(methodDeclaringClass.getDeclaredFields()).map(field -> {
             final TypeDocMeta typeDocMeta = new TypeDocMeta();
-            typeDocMeta.setName(field.getName());
-            typeDocMeta.setPublicName(adjustPublicFieldName(null, field));
+
+            // #thinking jflute maybe this is for sastruts style, already unneeded? (2021/06/26)
+            typeDocMeta.setName(formFieldNameAdjuster.adjustFieldName(methodDeclaringClass, field));
+            typeDocMeta.setPublicName(formFieldNameAdjuster.adjustPublicFieldName(/*clazz*/null, field)); // why null?
+
             typeDocMeta.setType(field.getType());
             typeDocMeta.setTypeName(adjustTypeName(field.getGenericType()));
             typeDocMeta.setSimpleTypeName(adjustSimpleTypeName((field.getGenericType())));
@@ -174,19 +182,28 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
             });
             return typeDocMeta;
         }).collect(Collectors.toList()));
+    }
 
-        // method item
+    protected void setupMethodItem(ActionDocMeta actionDocMeta, ActionExecute execute, Method executeMethod) {
         actionDocMeta.setActionExecute(execute);
         actionDocMeta.setMethodName(executeMethod.getName());
+    }
 
-        // annotation item
+    // -----------------------------------------------------
+    //                                            Annotation
+    //                                            ----------
+    protected void setupAnnotationItem(ActionDocMeta actionDocMeta, Method executeMethod, Class<?> methodDeclaringClass) {
         final List<Annotation> annotationList = DfCollectionUtil.newArrayList();
         annotationList.addAll(Arrays.asList(methodDeclaringClass.getAnnotations()));
         annotationList.addAll(Arrays.asList(executeMethod.getAnnotations()));
         actionDocMeta.setAnnotationTypeList(annotationList); // contains both action and execute method
         actionDocMeta.setAnnotationList(arrangeAnnotationList(annotationList));
+    }
 
-        // in/out item (parameter, form, return)
+    // -----------------------------------------------------
+    //                                                IN/OUT
+    //                                                ------
+    protected void setupInOutItem(ActionDocMeta actionDocMeta, ActionExecute execute, Method executeMethod) {
         final List<TypeDocMeta> parameterTypeDocMetaList = DfCollectionUtil.newArrayList();
         Arrays.stream(executeMethod.getParameters()).filter(parameter -> {
             return !(execute.getFormMeta().isPresent() && execute.getFormMeta().get().getSymbolFormType().equals(parameter.getType()));
@@ -199,13 +216,6 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
             actionDocMeta.setFormTypeDocMeta(formTypeDocMeta);
         });
         actionDocMeta.setReturnTypeDocMeta(analyzeReturnClass(executeMethod));
-
-        // extension item (url, return, comment...)
-        sourceParserReflector.ifPresent(sourceParserReflector -> {
-            sourceParserReflector.reflect(actionDocMeta, executeMethod);
-        });
-
-        return actionDocMeta;
     }
 
     protected String buildNewActionUrl(ActionDocMeta actionDocMeta, Parameter parameter) {
@@ -214,401 +224,80 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         return actionDocMeta.getUrl().replaceFirst("\\{\\}", builder.toString());
     }
 
-    // ===================================================================================
-    //                                                                             Analyze
-    //                                                                             =======
     // -----------------------------------------------------
     //                                     Analyze Parameter
     //                                     -----------------
     protected TypeDocMeta analyzeMethodParameter(Parameter parameter) {
-        final TypeDocMeta parameterDocMeta = new TypeDocMeta();
-        parameterDocMeta.setName(parameter.getName());
-        parameterDocMeta.setPublicName(parameter.getName());
-        parameterDocMeta.setType(parameter.getType());
-        parameterDocMeta.setTypeName(adjustTypeName(parameter.getParameterizedType()));
-        parameterDocMeta.setSimpleTypeName(adjustSimpleTypeName(parameter.getParameterizedType()));
-        if (OptionalThing.class.isAssignableFrom(parameter.getType())) {
-            parameterDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(parameter.getParameterizedType()));
-        }
-        parameterDocMeta.setAnnotationTypeList(Arrays.asList(parameter.getAnnotatedType().getAnnotations()));
-        parameterDocMeta.setAnnotationList(arrangeAnnotationList(parameterDocMeta.getAnnotationTypeList()));
-        parameterDocMeta.setNestTypeDocMetaList(Collections.emptyList());
-        sourceParserReflector.ifPresent(sourceParserReflector -> {
-            sourceParserReflector.reflect(parameterDocMeta, parameter.getType());
-        });
-        return parameterDocMeta;
+        return createExecuteParameterAnalyzer().analyzeMethodParameter(parameter);
+    }
+
+    protected ExecuteParameterAnalyzer createExecuteParameterAnalyzer() {
+        return new ExecuteParameterAnalyzer(sourceParserReflector, metaAnnotationArranger, metaTypeNameAdjuster);
     }
 
     // -----------------------------------------------------
     //                                          Analyze Form
     //                                          ------------
     protected OptionalThing<TypeDocMeta> analyzeFormClass(ActionExecute execute) {
-        return execute.getFormMeta().map(lastafluteFormMeta -> {
-            final TypeDocMeta formDocMeta = new TypeDocMeta();
-            lastafluteFormMeta.getListFormParameterParameterizedType().ifPresent(type -> {
-                formDocMeta.setType(lastafluteFormMeta.getSymbolFormType());
-                formDocMeta.setTypeName(adjustTypeName(type));
-                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(type));
-            }).orElse(() -> {
-                formDocMeta.setType(lastafluteFormMeta.getSymbolFormType());
-                formDocMeta.setTypeName(adjustTypeName(lastafluteFormMeta.getSymbolFormType()));
-                formDocMeta.setSimpleTypeName(adjustSimpleTypeName(lastafluteFormMeta.getSymbolFormType()));
-            });
-            final Class<?> formType = lastafluteFormMeta.getListFormParameterGenericType().orElse(lastafluteFormMeta.getSymbolFormType());
-            // #question can be emptyMap()? it seems like read-only in analyzeProperties() by jflute (2019/07/01)
-            final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
-            final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(formType, genericParameterTypesMap, depth);
-            formDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
-            sourceParserReflector.ifPresent(sourceParserReflector -> {
-                sourceParserReflector.reflect(formDocMeta, formType);
-            });
-            return formDocMeta;
-        });
+        return createExecuteFormTypeAnalyzer().analyzeFormClass(execute);
+    }
+
+    protected ExecuteFormTypeAnalyzer createExecuteFormTypeAnalyzer() {
+        return new ExecuteFormTypeAnalyzer(depth, sourceParserReflector, metaAnnotationArranger, metaTypeNameAdjuster,
+                formFieldNameAdjuster);
     }
 
     // -----------------------------------------------------
     //                                        Analyze Return
     //                                        --------------
     protected TypeDocMeta analyzeReturnClass(Method method) {
-        final TypeDocMeta returnDocMeta = new TypeDocMeta();
-        returnDocMeta.setType(method.getReturnType());
-        returnDocMeta.setTypeName(adjustTypeName(method.getGenericReturnType()));
-        returnDocMeta.setSimpleTypeName(adjustSimpleTypeName(method.getGenericReturnType()));
-        returnDocMeta.setGenericType(DfReflectionUtil.getGenericFirstClass(method.getGenericReturnType()));
-        returnDocMeta.setAnnotationTypeList(Arrays.asList(method.getAnnotatedReturnType().getAnnotations()));
-        returnDocMeta.setAnnotationList(arrangeAnnotationList(returnDocMeta.getAnnotationTypeList()));
-        derivedManualReturnClass(method, returnDocMeta);
-
-        Class<?> returnClass = returnDocMeta.getGenericType();
-        if (returnClass != null) { // e.g. List<String>, Sea<Land>
-            // TODO p1us2er0 optimisation, generic handling in analyzeReturnClass() (2015/09/30)
-            final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
-            final Type[] parameterTypes = DfReflectionUtil.getGenericParameterTypes(method.getGenericReturnType());
-            final TypeVariable<?>[] typeVariables = returnClass.getTypeParameters();
-            IntStream.range(0, parameterTypes.length).forEach(parameterTypesIndex -> {
-                final Type[] genericParameterTypes = DfReflectionUtil.getGenericParameterTypes(parameterTypes[parameterTypesIndex]);
-                IntStream.range(0, typeVariables.length).forEach(typeVariablesIndex -> {
-                    Type type = genericParameterTypes[typeVariablesIndex];
-                    genericParameterTypesMap.put(typeVariables[typeVariablesIndex].getTypeName(), type);
-                });
-            });
-
-            if (Iterable.class.isAssignableFrom(returnClass)) { // e.g. List<String>, List<Sea<Land>>
-                returnClass = LaDocReflectionUtil.extractElementType(method.getGenericReturnType(), 1);
-            }
-            final List<Class<? extends Object>> nativeClassList = getNativeDataTypeList();
-            if (returnClass != null && !nativeClassList.contains(returnClass)) {
-                final List<TypeDocMeta> propertyDocMetaList = analyzeProperties(returnClass, genericParameterTypesMap, depth);
-                returnDocMeta.setNestTypeDocMetaList(propertyDocMetaList);
-            }
-
-            if (sourceParserReflector.isPresent()) {
-                sourceParserReflector.get().reflect(returnDocMeta, returnClass);
-            }
-        }
-
-        return returnDocMeta;
+        return createExecuteReturnTypeAnalyzer().analyzeReturnClass(method);
     }
 
-    protected void derivedManualReturnClass(Method method, TypeDocMeta returnDocMeta) {
-    }
-
-    // -----------------------------------------------------
-    //                                    Analyze Properties
-    //                                    ------------------
-    // #hope separate analyzeProperties() from this generator (because depth is shadowed) by jflute (2019/07/01)
-    // (also analyzePropertyField())
-    //
-    // for e.g. form type, return type, nested property type
-    protected List<TypeDocMeta> analyzeProperties(Class<?> propertyOwner, Map<String, Type> genericParameterTypesMap, int depth) {
-        if (depth < 0) {
-            return DfCollectionUtil.newArrayList();
-        }
-        final Set<Field> fieldSet = extractWholeFieldSet(propertyOwner);
-        return fieldSet.stream().filter(field -> { // also contains private fields and super's fields
-            return !exceptsField(field);
-        }).map(field -> { // #question can private fields be treated as property? by jflute
-            return analyzePropertyField(propertyOwner, genericParameterTypesMap, depth, field);
-        }).collect(Collectors.toList());
-    }
-
-    protected Set<Field> extractWholeFieldSet(Class<?> propertyOwner) {
-        final Set<Field> fieldSet = DfCollectionUtil.newLinkedHashSet();
-        for (Class<?> targetClazz = propertyOwner; targetClazz != Object.class; targetClazz = targetClazz.getSuperclass()) {
-            if (targetClazz == null) { // e.g. interface: MultipartFormFile
-                break;
-            }
-            fieldSet.addAll(Arrays.asList(targetClazz.getDeclaredFields()));
-        }
-        return fieldSet;
-    }
-
-    protected boolean exceptsField(Field field) { // e.g. special field and static field
-        return SUPPRESSED_FIELD_SET.contains(field.getName()) || Modifier.isStatic(field.getModifiers());
-    }
-
-    // -----------------------------------------------------
-    //                                Analyze Property Field
-    //                                ----------------------
-    protected TypeDocMeta analyzePropertyField(Class<?> propertyOwner, Map<String, Type> genericParameterTypesMap, int depth, Field field) {
-        final TypeDocMeta meta = new TypeDocMeta();
-
-        final Class<?> resolvedClass;
-        {
-            final Type resolvedType;
-            {
-                final Type genericClass = genericParameterTypesMap.get(field.getGenericType().getTypeName());
-                resolvedType = genericClass != null ? genericClass : field.getType();
-            }
-
-            // basic item
-            meta.setName(field.getName()); // also property name #question but overridden later, needed? by jflute
-            meta.setPublicName(adjustPublicFieldName(null, field));
-            // #question type property is not related to resolvedType, is it OK? by jflute
-            meta.setType(field.getType()); // e.g. String, Integer, SeaPart
-            meta.setTypeName(adjustTypeName(resolvedType));
-            meta.setSimpleTypeName(adjustSimpleTypeName(resolvedType));
-
-            // annotation item
-            meta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
-            meta.setAnnotationList(arrangeAnnotationList(meta.getAnnotationTypeList()));
-
-            // comment item (value expression)
-            if (resolvedType instanceof Class) {
-                resolvedClass = (Class<?>) resolvedType;
-            } else {
-                resolvedClass = (Class<?>) DfReflectionUtil.getGenericParameterTypes(resolvedType)[0];
-            }
-            if (resolvedClass.isEnum()) {
-                meta.setValue(buildEnumValuesExp(resolvedClass)); // e.g. {FML = Formalized, PRV = Provisinal, ...}
-            }
-        }
-
-        if (isTargetSuffixResolvedClass(resolvedClass)) { // nested bean of direct type as top or inner class
-            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-            // e.g.
-            //  public SeaResult sea; // current field, the outer type should have suffix
-            //
-            //   or
-            //
-            //  public class SeaResult { // the declaring class should have suffix
-            //      public HangarPart hangar; // current field
-            //      public static class HangarPart {
-            //          ...
-            //      }
-            //  }
-            // _/_/_/_/_/_/_/_/_/_/
-            meta.setNestTypeDocMetaList(analyzeProperties(resolvedClass, genericParameterTypesMap, depth - 1));
-        } else if (isTargetSuffixFieldGeneric(field)) { // nested bean of generic type as top or inner class
-            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-            // e.g.
-            //  public List<SeaResult> seaList; // current field, the outer type should have suffix
-            //
-            //   or
-            //
-            //  public class SeaResult { // the declaring class should have suffix
-            //      public List<HangarPart> hangarList; // current field
-            //      public static class HangarPart {
-            //          ...
-            //      }
-            //  }
-            // _/_/_/_/_/_/_/_/_/_/
-            Type type = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
-            if (type instanceof Class<?>) {
-                final Class<?> typeArgumentClass = (Class<?>) type;
-                meta.setNestTypeDocMetaList(analyzeProperties(typeArgumentClass, genericParameterTypesMap, depth - 1));
-                // overriding type names that are already set before
-                final String currentTypeName = meta.getTypeName();
-                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
-                meta.setSimpleTypeName(adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
-            } else if (type instanceof ParameterizedType) {
-                final Class<?> typeArgumentClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
-                meta.setNestTypeDocMetaList(analyzeProperties(typeArgumentClass, genericParameterTypesMap, depth - 1));
-                // overriding type names that are already set before
-                final String currentTypeName = meta.getTypeName();
-                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(((ParameterizedType) type).getRawType()) + "<"
-                        + adjustTypeName(typeArgumentClass) + ">>");
-                meta.setSimpleTypeName(
-                        adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(((ParameterizedType) type).getRawType()) + "<"
-                                + adjustSimpleTypeName(typeArgumentClass) + ">>");
-            }
-        } else { // e.g. String, Integer, LocalDate, Sea<Mystic>
-            // TODO p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
-            if (field.getGenericType().getTypeName().matches(".*<(.*)>")) { // e.g. Sea<Mystic>
-                final String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*<(.*)>", "$1");
-
-                // generic item
-                try {
-                    meta.setGenericType(DfReflectionUtil.forName(genericTypeName));
-                } catch (ReflectionFailureException ignored) { // e.g. BEAN (generic parameter name)
-                    meta.setGenericType(Object.class); // unknown
-                }
-
-                final Type genericClass = genericParameterTypesMap.get(genericTypeName);
-                if (genericClass != null) { // the generic is defined at top definition (e.g. return)
-                    meta.setNestTypeDocMetaList(analyzeProperties((Class<?>) genericClass, genericParameterTypesMap, depth - 1));
-
-                    // overriding type names that are already set before
-                    final String typeName = meta.getTypeName();
-                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericClass) + ">");
-                    meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericClass) + ">");
-                } else {
-                    // overriding type names that are already set before
-                    final String typeName = meta.getTypeName();
-                    meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericTypeName) + ">");
-                    meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
-                }
-            }
-        }
-
-        // e.g. comment item (description, comment)
-        sourceParserReflector.ifPresent(sourceParserReflector -> {
-            sourceParserReflector.reflect(meta, propertyOwner);
-        });
-
-        // necessary to set it after parsing javadoc
-        meta.setName(adjustFieldName(propertyOwner, field));
-        meta.setPublicName(adjustPublicFieldName(propertyOwner, field));
-        return meta;
-    }
-
-    protected String buildEnumValuesExp(Class<?> typeClass) {
-        // cannot resolve type by maven compiler, explicitly cast it
-        final String valuesExp;
-        if (Classification.class.isAssignableFrom(typeClass)) {
-            @SuppressWarnings("unchecked")
-            final Class<Classification> clsType = ((Class<Classification>) typeClass);
-            valuesExp = Arrays.stream(clsType.getEnumConstants()).collect(Collectors.toMap(keyMapper -> {
-                return ((Classification) keyMapper).code();
-            }, valueMapper -> {
-                return ((Classification) valueMapper).alias();
-            }, (u, v) -> v, LinkedHashMap::new)).toString(); // e.g. {FML = Formalized, PRV = Provisinal, ...}
-        } else {
-            final Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
-            valuesExp = Arrays.stream(constants).collect(Collectors.toList()).toString(); // e.g. [SEA, LAND, PIARI]
-        }
-        return valuesExp;
-    }
-
-    // -----------------------------------------------------
-    //                                         Target Suffix
-    //                                         -------------
-    // target means e.g. Form, Result or their inner class (Part class)
-    protected boolean isTargetSuffixResolvedClass(Class<?> resolvedClass) {
-        return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
-            final String fqcn = resolvedClass.getName(); // may be inner class e.g. SeaForm$MysticPart
-            return determineTargetSuffixResolvedClass(fqcn, suffix);
-        });
-    }
-
-    protected boolean isTargetSuffixFieldGeneric(Field field) {
-        return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
-            final String fqcn = field.getGenericType().getTypeName(); // may be inner class e.g. SeaForm$MysticPart
-            return determineTargetSuffixResolvedClass(fqcn, suffix);
-        });
-    }
-
-    protected List<String> getTargetTypeSuffixList() {
-        return TARGET_SUFFIX_LIST; // e.g. Form, Result
-    }
-
-    protected boolean determineTargetSuffixResolvedClass(String fqcn, String suffix) {
-        return fqcn.endsWith(suffix) || fqcn.contains(suffix + "$"); // e.g. SeaForm or SeaForm$MysticPart
-    }
-
-    // -----------------------------------------------------
-    //                                            Field Name
-    //                                            ----------
-    protected String adjustFieldName(Class<?> clazz, Field field) {
-        return field.getName();
-    }
-
-    protected String adjustPublicFieldName(Class<?> clazz, Field field) {
-        // done (by jflute 2019/01/17) p1us2er0 judge accurately in adjustFieldName() (2017/04/20)
-        if (clazz == null || isActionFormComponentType(clazz)) {
-            return field.getName();
-        }
-        // basically JsonBody or JsonResult here
-        // (Thymeleaf beans cannot be analyzed as framework so not here)
-        return getAppJsonControlMeta().getMappingControlMeta().flatMap(meta -> {
-            return meta.getFieldNaming().map(naming -> {
-                if (naming == JsonFieldNaming.IDENTITY) {
-                    return FieldNamingPolicy.IDENTITY.translateName(field);
-                } else if (naming == JsonFieldNaming.CAMEL_TO_LOWER_SNAKE) {
-                    return FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES.translateName(field);
-                } else {
-                    return field.getName();
-                }
-            });
-        }).orElse(field.getName());
-    }
-
-    protected boolean isActionFormComponentType(Class<?> clazz) { // and not JSON body
-        // #thinking jflute using Form meta of LastaFlute is better? (2019/01/17)
-        return clazz.getSimpleName().endsWith("Form") // just form class
-                || clazz.getName().contains("Form$"); // inner class of Form (e.g. Part)
+    protected ExecuteReturnTypeAnalyzer createExecuteReturnTypeAnalyzer() {
+        return new ExecuteReturnTypeAnalyzer(depth, sourceParserReflector, metaAnnotationArranger, metaTypeNameAdjuster,
+                nativeDataTypeProvider, formFieldNameAdjuster);
     }
 
     // ===================================================================================
     //                                                                     Action Property
     //                                                                     ===============
-    protected Map<String, String> convertPropertyNameMap(String parentName, TypeDocMeta typeDocMeta) {
-        if (typeDocMeta == null) {
-            return DfCollectionUtil.newLinkedHashMap();
-        }
-
-        final Map<String, String> propertyNameMap = DfCollectionUtil.newLinkedHashMap();
-
-        final String name = calculateName(parentName, typeDocMeta.getName(), typeDocMeta.getTypeName());
-        if (DfStringUtil.is_NotNull_and_NotEmpty(name)) {
-            propertyNameMap.put(name, "");
-        }
-
-        if (typeDocMeta.getNestTypeDocMetaList() != null) {
-            typeDocMeta.getNestTypeDocMetaList().forEach(nestDocMeta -> {
-                propertyNameMap.putAll(convertPropertyNameMap(name, nestDocMeta));
-            });
-        }
-
-        return propertyNameMap;
-    }
-
-    protected String calculateName(String parentName, String name, String type) {
-        if (DfStringUtil.is_Null_or_Empty(name)) {
-            return null;
-        }
-
-        final StringBuilder builder = new StringBuilder();
-        if (DfStringUtil.is_NotNull_and_NotEmpty(parentName)) {
-            builder.append(parentName + ".");
-        }
-        builder.append(name);
-        if (name.endsWith("List")) {
-            builder.append("[]");
-        }
-
-        return builder.toString();
-    }
-
-    // ===================================================================================
-    //                                                                    Native Data Type
-    //                                                                    ================
-    public List<Class<?>> getNativeDataTypeList() {
-        return nativeDataTypeProvider.provideNativeDataTypeList();
-    }
-
-    // ===================================================================================
-    //                                                                        Small Helper
-    //                                                                        ============
-    protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
-        return new DocumentAnalyzerFactory();
-    }
-
-    protected ActionPathResolver getActionPathResolver() {
-        return ContainerUtil.getComponent(ActionPathResolver.class);
-    }
-
-    protected JsonControlMeta getAppJsonControlMeta() {
-        return metauseJsonEngineProvider.getAppJsonControlMeta();
-    }
+    // #thinking jflute unused so comment it out, unneeded? (2021/06/26)
+    //protected Map<String, String> convertPropertyNameMap(String parentName, TypeDocMeta typeDocMeta) {
+    //    if (typeDocMeta == null) {
+    //        return DfCollectionUtil.newLinkedHashMap();
+    //    }
+    //
+    //    final Map<String, String> propertyNameMap = DfCollectionUtil.newLinkedHashMap();
+    //
+    //    final String name = calculateName(parentName, typeDocMeta.getName(), typeDocMeta.getTypeName());
+    //    if (DfStringUtil.is_NotNull_and_NotEmpty(name)) {
+    //        propertyNameMap.put(name, "");
+    //    }
+    //
+    //    if (typeDocMeta.getNestTypeDocMetaList() != null) {
+    //        typeDocMeta.getNestTypeDocMetaList().forEach(nestDocMeta -> {
+    //            propertyNameMap.putAll(convertPropertyNameMap(name, nestDocMeta));
+    //        });
+    //    }
+    //
+    //    return propertyNameMap;
+    //}
+    //
+    //protected String calculateName(String parentName, String name, String type) {
+    //    if (DfStringUtil.is_Null_or_Empty(name)) {
+    //        return null;
+    //    }
+    //
+    //    final StringBuilder builder = new StringBuilder();
+    //    if (DfStringUtil.is_NotNull_and_NotEmpty(parentName)) {
+    //        builder.append(parentName + ".");
+    //    }
+    //    builder.append(name);
+    //    if (name.endsWith("List")) {
+    //        builder.append("[]");
+    //    }
+    //
+    //    return builder.toString();
+    //}
 }

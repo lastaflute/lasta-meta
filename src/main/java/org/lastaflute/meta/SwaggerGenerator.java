@@ -30,7 +30,7 @@ import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
-import org.lastaflute.meta.document.type.NativeDataTypeProvider;
+import org.lastaflute.meta.document.parts.type.NativeDataTypeProvider;
 import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
 import org.lastaflute.meta.swagger.json.SwaggerJsonReader;
 import org.lastaflute.meta.swagger.spec.SwaggerSpecCreator;
@@ -181,7 +181,7 @@ public class SwaggerGenerator {
     //                                         ActionDocMeta
     //                                         -------------
     protected List<ActionDocMeta> generateActionDocMetaList() {
-        return new DocumentGenerator().createActionDocumentAnalyzer().generateActionDocMetaList();
+        return new DocumentGenerator().createActionDocumentAnalyzer().analyzeAction();
     }
 
     // ===================================================================================

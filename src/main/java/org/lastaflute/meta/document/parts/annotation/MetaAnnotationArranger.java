@@ -13,7 +13,7 @@
  * either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-package org.lastaflute.meta.document.annotation;
+package org.lastaflute.meta.document.parts.annotation;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -27,7 +27,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import org.dbflute.util.DfReflectionUtil;
-import org.lastaflute.meta.document.type.MetaTypeNameAdjuster;
+import org.lastaflute.meta.document.parts.type.MetaTypeNameAdjuster;
 
 /**
  * @author p1us2er0
