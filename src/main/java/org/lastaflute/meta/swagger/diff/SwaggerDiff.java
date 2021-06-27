@@ -22,9 +22,12 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
+import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfResourceUtil;
 import org.dbflute.util.Srl;
 import org.lastaflute.meta.exception.LastaMetaIOException;
@@ -47,7 +50,7 @@ public class SwaggerDiff {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected final SwaggerDiffOption swaggerDiffOption;
+    protected final SwaggerDiffOption swaggerDiffOption; // not null
 
     // ===================================================================================
     //                                                                         Constructor
@@ -61,13 +64,9 @@ public class SwaggerDiff {
     }
 
     protected SwaggerDiffOption createSwaggerDiffOption(Consumer<SwaggerDiffOption> opLambda) {
-        SwaggerDiffOption swaggerDiffOption = new SwaggerDiffOption();
+        final SwaggerDiffOption swaggerDiffOption = new SwaggerDiffOption();
         opLambda.accept(swaggerDiffOption);
         return swaggerDiffOption;
-    }
-
-    protected SwaggerDiffOption getSwaggerDiffOption() {
-        return this.swaggerDiffOption;
     }
 
     // ===================================================================================
@@ -75,8 +74,8 @@ public class SwaggerDiff {
     //                                                                                ====
     public String diffFromLocations(String leftSwaggerLocation, String rightSwaggerLocation) {
         try {
-            ChangedOpenApi changedOpenApi = diffFromLocationsInChangedOpenApi(leftSwaggerLocation, rightSwaggerLocation);
-            return swaggerDiffOption.getRender().render(changedOpenApi);
+            final ChangedOpenApi changedOpenApi = diffFromLocationsInChangedOpenApi(leftSwaggerLocation, rightSwaggerLocation);
+            return swaggerDiffOption.getDiffResultRender().render(changedOpenApi);
         } catch (RuntimeException e) {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
             br.addNotice("Failed to diff the swagger files.");
@@ -91,7 +90,7 @@ public class SwaggerDiff {
 
     public String diffFromContents(String leftSwaggerContent, String rightSwaggerContent) {
         ChangedOpenApi changedOpenApi = diffFromContentsInChangedOpenApi(leftSwaggerContent, rightSwaggerContent);
-        String value = swaggerDiffOption.getRender().render(changedOpenApi);
+        String value = swaggerDiffOption.getDiffResultRender().render(changedOpenApi);
         return value;
     }
 
@@ -99,16 +98,17 @@ public class SwaggerDiff {
     //                                                                Diff(ChangedOpenApi)
     //                                                                ====================
     protected ChangedOpenApi diffFromLocationsInChangedOpenApi(String leftSwaggerLocation, String rightSwaggerLocation) {
-        try (InputStream leftSwaggerInputStream = getInputStream(leftSwaggerLocation);
-                Reader leftSwaggerReader = new InputStreamReader(leftSwaggerInputStream, this.getSwaggerDiffOption().getCharset());
-                InputStream rightSwaggerInputStream = getInputStream(rightSwaggerLocation);
-                Reader rightSwaggerReader = new InputStreamReader(rightSwaggerInputStream, this.getSwaggerDiffOption().getCharset());) {
-            String leftSwaggerContent = DfResourceUtil.readText(leftSwaggerReader);
-            String rightSwaggerContent = DfResourceUtil.readText(rightSwaggerReader);
+        final Charset charset = getSwaggerDiffOption().getSwaggerContentCharset();
+        try (InputStream leftIns = getInputStream(leftSwaggerLocation);
+                Reader leftReader = new InputStreamReader(leftIns, charset);
+                InputStream rightIns = getInputStream(rightSwaggerLocation);
+                Reader rightReader = new InputStreamReader(rightIns, charset);) {
+            final String leftSwaggerContent = DfResourceUtil.readText(leftReader);
+            final String rightSwaggerContent = DfResourceUtil.readText(rightReader);
             return diffFromContentsInChangedOpenApi(leftSwaggerContent, rightSwaggerContent);
         } catch (IOException e) {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
-            br.addNotice("Failed to parse the swagger");
+            br.addNotice("Failed to read the swagger file.");
             br.addItem("leftSwaggerLocation");
             br.addElement(leftSwaggerLocation);
             br.addItem("rightSwaggerLocation");
@@ -119,36 +119,36 @@ public class SwaggerDiff {
     }
 
     protected ChangedOpenApi diffFromContentsInChangedOpenApi(String leftSwaggerContent, String rightSwaggerContent) {
-        try {
-            final ObjectMapper objectMapper = new ObjectMapper();
-            final String encoding = this.getSwaggerDiffOption().getCharset().name();
-            {
-                final String decoded = decodeContent(leftSwaggerContent, encoding);
-                final JsonNode jsonNode = objectMapper.readTree(decoded);
-                this.getSwaggerDiffOption().getDiffAdjustmentNode().accept("", jsonNode);
-                leftSwaggerContent = objectMapper.writeValueAsString(jsonNode);
-            }
-            {
-                final String decoded = decodeContent(rightSwaggerContent, encoding);
-                final JsonNode jsonNode = objectMapper.readTree(decoded);
-                this.getSwaggerDiffOption().getDiffAdjustmentNode().accept("", jsonNode);
-                rightSwaggerContent = objectMapper.writeValueAsString(jsonNode);
-            }
-        } catch (IOException e) {
-            final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
-            br.addNotice("Failed to parse the swagger");
-            br.addItem("leftSwaggerContent");
-            br.addElement(leftSwaggerContent);
-            br.addItem("rightSwaggerContent");
-            br.addElement(rightSwaggerContent);
-            final String msg = br.buildExceptionMessage();
-            throw new LastaMetaIOException(msg, e);
-        }
+        // parsed content
+        final String leftParsedContent = prepareParsedContent(leftSwaggerContent, swaggerDiffOption.getLeftContentFilter());
+        final String rightParsedContent = prepareParsedContent(rightSwaggerContent, swaggerDiffOption.getRightContentFilter());
 
-        OpenAPI leftOpenAPI = new OpenAPIParser().readContents(leftSwaggerContent, null, null).getOpenAPI();
-        OpenAPI rightOpenAPI = new OpenAPIParser().readContents(rightSwaggerContent, null, null).getOpenAPI();
-        ChangedOpenApi diff = OpenApiCompare.fromSpecifications(leftOpenAPI, rightOpenAPI);
-        return diff;
+        // parse/compare
+        final OpenAPI leftOpenAPI = parseOpenApiContent(leftParsedContent);
+        final OpenAPI rightOpenAPI = parseOpenApiContent(rightParsedContent);
+        return compareOpenAPILeftRight(leftOpenAPI, rightOpenAPI);
+    }
+
+    // -----------------------------------------------------
+    //                                        Parsed Content
+    //                                        --------------
+    protected String prepareParsedContent(String swaggerContent, OptionalThing<Function<String, String>> contentFilter) {
+        final String resolvedContent = resolveSwaggerContentNode(swaggerContent);
+        return contentFilter.map(filter -> filter.apply(resolvedContent)).orElse(resolvedContent);
+    }
+
+    protected String resolveSwaggerContentNode(String swaggerContent) {
+        try {
+            final String encoding = getSwaggerDiffOption().getSwaggerContentCharset().name();
+            final String decoded = decodeContent(swaggerContent, encoding);
+            final ObjectMapper objectMapper = new ObjectMapper();
+            final JsonNode jsonNode = objectMapper.readTree(decoded);
+            getSwaggerDiffOption().getDiffAdjustmentNode().accept("", jsonNode);
+            return objectMapper.writeValueAsString(jsonNode);
+        } catch (IOException e) {
+            throwSwaggerDiffContentReadIOException(swaggerContent, e);
+            return null; // unreachable
+        }
     }
 
     protected String decodeContent(String swaggerContent, String encoding) throws UnsupportedEncodingException {
@@ -168,6 +168,26 @@ public class SwaggerDiff {
         //}
     }
 
+    protected void throwSwaggerDiffContentReadIOException(String swaggerContent, IOException e) {
+        final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+        br.addNotice("Failed to parse the swagger");
+        br.addItem("swaggerContent");
+        br.addElement(swaggerContent);
+        final String msg = br.buildExceptionMessage();
+        throw new LastaMetaIOException(msg, e);
+    }
+
+    // -----------------------------------------------------
+    //                                         Parse/Compare
+    //                                         -------------
+    protected OpenAPI parseOpenApiContent(final String leftParsedContent) {
+        return new OpenAPIParser().readContents(leftParsedContent, null, null).getOpenAPI();
+    }
+
+    protected ChangedOpenApi compareOpenAPILeftRight(OpenAPI leftOpenAPI, OpenAPI rightOpenAPI) {
+        return OpenApiCompare.fromSpecifications(leftOpenAPI, rightOpenAPI);
+    }
+
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
@@ -176,7 +196,7 @@ public class SwaggerDiff {
             if (location.contains(":")) {
                 return new URL(location).openStream();
             }
-            InputStream inputStream = getClass().getResourceAsStream(location);
+            final InputStream inputStream = getClass().getResourceAsStream(location);
             if (inputStream != null) {
                 return inputStream;
             }
@@ -189,5 +209,12 @@ public class SwaggerDiff {
             final String msg = br.buildExceptionMessage();
             throw new LastaMetaIOException(msg, e);
         }
+    }
+
+    // ===================================================================================
+    //                                                                            Accessor
+    //                                                                            ========
+    protected SwaggerDiffOption getSwaggerDiffOption() {
+        return this.swaggerDiffOption;
     }
 }

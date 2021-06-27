@@ -15,7 +15,9 @@
  */
 package org.lastaflute.meta.agent.yourswagger;
 
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
@@ -35,25 +37,50 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
 
     private static final Logger logger = LoggerFactory.getLogger(YourSwaggerSyncAgent.class);
 
-    public void verifyYourSwaggerSync(String locationPath, Consumer<SwaggerDiffOption> opLambda) {
+    public void verifyYourSwaggerSync(String locationPath, Consumer<YourSwaggerSyncOption> opLambda) {
         if (locationPath == null) {
             throw new IllegalArgumentException("The argument 'locationPath' should not be null.");
         }
         if (opLambda == null) {
             throw new IllegalArgumentException("The argument 'opLambda' should not be null.");
         }
-        logger.debug("...Verifying that your swagger.json is synchronized with source codes: path={}", locationPath);
-        final SwaggerDiff diff = newSwaggerDiff(opLambda);
+        final YourSwaggerSyncOption syncOption = createYourSwaggerSyncOption(opLambda);
+        final SwaggerDiff diff = createSwaggerDiff(syncOption);
         final String outputSwaggerJsonPath = newOutputMetaAgent().getSwaggerJsonPath().toString();
 
         // SwaggerDiff's rule: left means old, right means new
         // master is your swagger here
-        final String diffResult = diff.diffFromLocations(outputSwaggerJsonPath, locationPath);
+        logger.debug("...Verifying that your swagger.json is synchronized with source codes: path={}", locationPath);
+        final String diffResult = diff.diffFromLocations(outputSwaggerJsonPath, locationPath); // not null, empty allowed
+        if (diffResult == null) {
+            throw new IllegalStateException("The diffResult (from differ) should not be null: locationPath=" + locationPath);
+        }
 
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
         // TODO awaawa improve SwaggerDiff determination by jflute (2021/05/29)
-        if (!diffResult.isEmpty()) { // has differences
+        // _/_/_/_/_/_/_/_/_/_/
+        // you can throw as your own rule e.g. only changed, deleted
+        // or whether differences exist or not
+        final Predicate<String> exceptionDeterminer = syncOption.getExceptionDeterminer().orElseGet(() -> {
+            return res -> !res.isEmpty(); // as default
+        });
+        if (exceptionDeterminer.test(diffResult)) {
             throwYourSwaggerDiffException(diffResult);
         }
+    }
+
+    protected YourSwaggerSyncOption createYourSwaggerSyncOption(Consumer<YourSwaggerSyncOption> opLambda) {
+        final YourSwaggerSyncOption syncOption = new YourSwaggerSyncOption();
+        opLambda.accept(syncOption);
+        return syncOption;
+    }
+
+    protected SwaggerDiff createSwaggerDiff(YourSwaggerSyncOption syncOption) {
+        final List<Consumer<SwaggerDiffOption>> diffOptionSetupperList = syncOption.getSwaggerDiffOptionSetupperList();
+        final SwaggerDiff diff = newSwaggerDiff(op -> {
+            diffOptionSetupperList.forEach(setupper -> setupper.accept(op));
+        });
+        return diff;
     }
 
     protected SwaggerDiff newSwaggerDiff(Consumer<SwaggerDiffOption> opLambda) {

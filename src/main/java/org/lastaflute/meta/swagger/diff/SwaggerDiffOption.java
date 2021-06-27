@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 
+import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.swagger.diff.render.LastaMetaMarkdownRender;
@@ -33,59 +35,35 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * @author p1us2er0
+ * @author jflute
  */
 public class SwaggerDiffOption {
 
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    protected Charset charset = StandardCharsets.UTF_8;
-    protected Render render = new LastaMetaMarkdownRender();
+    // -----------------------------------------------------
+    //                                                 Basic
+    //                                                 -----
+    protected Charset swaggerContentCharset = StandardCharsets.UTF_8; // as default
+    protected Render diffResultRender = newLastaMetaMarkdownRender(); // as default
+
+    protected LastaMetaMarkdownRender newLastaMetaMarkdownRender() {
+        return new LastaMetaMarkdownRender();
+    }
+
+    // -----------------------------------------------------
+    //                                            Diff Logic
+    //                                            ----------
+    protected Function<String, String> leftContentFilter;
+    protected Function<String, String> rightContentFilter;
+
+    // -----------------------------------------------------
+    //                                         Node Handling
+    //                                         -------------
     protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
     protected BiPredicate<String, String> targetNodeLambda = getDefaultTargetNode();
 
-    // ===================================================================================
-    //                                                                               Basic
-    //                                                                               =====
-    public void setCharset(Charset charset) {
-        this.charset = charset;
-    }
-
-    public void setRender(Render render) {
-        this.render = render;
-    }
-
-    // TODO awaawa hope that Jackson class is closed, wrap the JsonNode by jflute (2021/06/08)
-    public void derivedDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
-        this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
-    }
-
-    public void derivedTargetNode(BiPredicate<String, String> targetNodeLambda) {
-        this.targetNodeLambda = targetNodeLambda;
-    }
-
-    // ===================================================================================
-    //                                                                            Accessor
-    //                                                                            ========
-    public Charset getCharset() {
-        return this.charset;
-    }
-
-    public Render getRender() {
-        return this.render;
-    }
-
-    public BiConsumer<String, JsonNode> getDiffAdjustmentNode() {
-        return this.diffAdjustmentNodeLambda;
-    }
-
-    public BiPredicate<String, String> getTargetNodeLambda() {
-        return this.targetNodeLambda;
-    }
-
-    // ===================================================================================
-    //                                                                     Diff Adjustment
-    //                                                                     ===============
     // TODO awaawa hope that default logic is moved from here by jflute (2021/06/08)
     protected BiConsumer<String, JsonNode> getDefaultDiffAdjustmentNode() {
         return (fieldName, node) -> {
@@ -118,5 +96,72 @@ public class SwaggerDiffOption {
             }
             return true;
         };
+    }
+
+    // ===================================================================================
+    //                                                                               Basic
+    //                                                                               =====
+    public void setSwaggerContentCharset(Charset swaggerContentCharset) {
+        this.swaggerContentCharset = swaggerContentCharset;
+    }
+
+    public void setDiffResultRender(Render diffResultRender) {
+        this.diffResultRender = diffResultRender;
+    }
+
+    // ===================================================================================
+    //                                                                          Diff Logic
+    //                                                                          ==========
+    public SwaggerDiffOption filterLeftContent(Function<String, String> leftContentFilter) {
+        this.leftContentFilter = leftContentFilter;
+        return this;
+    }
+
+    public SwaggerDiffOption filterRightContent(Function<String, String> leftContentFilter) {
+        this.leftContentFilter = leftContentFilter;
+        return this;
+    }
+
+    // ===================================================================================
+    //                                                                       Node Handling
+    //                                                                       =============
+    // TODO awaawa hope that Jackson class is closed, wrap the JsonNode by jflute (2021/06/08)
+    public void deriveDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
+        this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
+    }
+
+    public void deriveTargetNode(BiPredicate<String, String> targetNodeLambda) {
+        this.targetNodeLambda = targetNodeLambda;
+    }
+
+    // ===================================================================================
+    //                                                                            Accessor
+    //                                                                            ========
+    public Charset getSwaggerContentCharset() {
+        return this.swaggerContentCharset;
+    }
+
+    public Render getDiffResultRender() {
+        return this.diffResultRender;
+    }
+
+    public OptionalThing<Function<String, String>> getLeftContentFilter() {
+        return OptionalThing.ofNullable(leftContentFilter, () -> {
+            throw new IllegalStateException("Not found the leftContentFilter.");
+        });
+    }
+
+    public OptionalThing<Function<String, String>> getRightContentFilter() {
+        return OptionalThing.ofNullable(rightContentFilter, () -> {
+            throw new IllegalStateException("Not found the rightContentFilter.");
+        });
+    }
+
+    public BiConsumer<String, JsonNode> getDiffAdjustmentNode() {
+        return this.diffAdjustmentNodeLambda;
+    }
+
+    public BiPredicate<String, String> getTargetNodeLambda() {
+        return this.targetNodeLambda;
     }
 }
