@@ -20,9 +20,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
-import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.Srl;
 import org.lastaflute.meta.swagger.diff.SwaggerDiffOption;
 
@@ -36,13 +34,13 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
     //                                                                           Attribute
     //                                                                           =========
     protected final List<Consumer<SwaggerDiffOption>> swaggerDiffOptionSetupperList = new ArrayList<>();
-    protected Predicate<String> exceptionDeterminer;
+    protected boolean loggingIfNewOnly;
 
     // ===================================================================================
     //                                                                              Option
     //                                                                              ======
-    public YourSwaggerSyncOption deriveTargetNode(BiPredicate<String, String> targetNodeLambda) {
-        swaggerDiffOptionSetupperList.add(op -> op.deriveTargetNode(targetNodeLambda));
+    public YourSwaggerSyncOption deriveTargetNodeAnd(BiPredicate<String, String> targetNodeLambda) {
+        swaggerDiffOptionSetupperList.add(op -> op.deriveTargetNodeAnd(targetNodeLambda));
         return this;
     }
 
@@ -54,12 +52,23 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
     }
 
     protected String filterTrailingSlash(String leftSwaggerContent) {
-        // #needs_fix jflute depends on Lasta-presents swagger.json format here, can it do by OpenAPI (2021/06/28)
-        return Srl.replace(leftSwaggerContent, "/\": {", "\": {");
+        // #needs_fix jflute depends on Lasta-presents swagger.json format here, thinking how to do by OpenAPI (2021/06/28)
+        final List<String> lineList = Srl.splitList(leftSwaggerContent, "\n");
+        final StringBuilder sb = new StringBuilder();
+        String fromStr = "/\": {"; // ends with (trailing) slash
+        for (String line : lineList) {
+            if (line.contains(fromStr) && !line.contains("\"/\"")) { // except "/" (root)
+                sb.append(Srl.replace(line, fromStr, "\": {")); // no trailing slash
+            } else {
+                sb.append(line);
+            }
+            sb.append("\n");
+        }
+        return sb.toString();
     }
 
-    public YourSwaggerSyncOption determineException(Predicate<String> exceptionDeterminer) {
-        this.exceptionDeterminer = exceptionDeterminer;
+    public YourSwaggerSyncOption asLoggingIfNewOnly() {
+        loggingIfNewOnly = true;
         return this;
     }
 
@@ -70,9 +79,7 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
         return Collections.unmodifiableList(swaggerDiffOptionSetupperList);
     }
 
-    public OptionalThing<Predicate<String>> getExceptionDeterminer() {
-        return OptionalThing.ofNullable(exceptionDeterminer, () -> {
-            throw new IllegalStateException("Not found the exceptionDeterminer.");
-        });
+    public boolean isLoggingIfNewOnly() {
+        return loggingIfNewOnly;
     }
 }

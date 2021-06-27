@@ -137,7 +137,7 @@ public class SwaggerDiffOption {
     // ===================================================================================
     //                                                                       Node Handling
     //                                                                       =============
-    public void deriveTargetNode(BiPredicate<String, String> targetNodeLambda) {
+    public void deriveTargetNodeAnd(BiPredicate<String, String> targetNodeLambda) {
         if (targetNodeLambda == null) {
             throw new IllegalArgumentException("The argument 'targetNodeLambda' should not be null.");
         }

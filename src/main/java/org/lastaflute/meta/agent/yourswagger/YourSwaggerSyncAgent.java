@@ -17,7 +17,6 @@ package org.lastaflute.meta.agent.yourswagger;
 
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
@@ -59,19 +58,21 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
         // TODO awaawa improve SwaggerDiff determination by jflute (2021/05/29)
         // _/_/_/_/_/_/_/_/_/_/
-        // you can throw as your own rule e.g. only changed, deleted
-        // or whether differences exist or not
-        final Predicate<String> exceptionDeterminer = syncOption.getExceptionDeterminer().orElseGet(() -> {
-            return res -> !res.isEmpty(); // as default
-        });
+        if (diffResult.isEmpty()) { // means no diff
+            logger.debug("No difference, so your swagger synchronized with server implementation!");
+            return;
+        }
         final String diffMessage = buildYourSwaggerDiffMessage(diffResult);
-        if (exceptionDeterminer.test(diffResult)) {
-            throw new YourSwaggerDiffException(diffMessage);
+        if (isLoggingResult(syncOption, diffResult)) {
+            logger.info(diffMessage); // as important notification
         } else {
-            logger.info(diffMessage);
+            throw new YourSwaggerDiffException(diffMessage);
         }
     }
 
+    // -----------------------------------------------------
+    //                                                 Ready
+    //                                                 -----
     protected YourSwaggerSyncOption createYourSwaggerSyncOption(Consumer<YourSwaggerSyncOption> opLambda) {
         final YourSwaggerSyncOption syncOption = new YourSwaggerSyncOption();
         opLambda.accept(syncOption);
@@ -94,6 +95,9 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         return new OutputMetaAgent();
     }
 
+    // -----------------------------------------------------
+    //                                     Handle Difference
+    //                                     -----------------
     protected String buildYourSwaggerDiffMessage(String diffResult) {
         final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
         br.addNotice("Found the differences between your swagger.json and source codes.");
@@ -106,5 +110,14 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         br.addItem("Diff Result");
         br.addElement(diffResult);
         return br.buildExceptionMessage();
+    }
+
+    protected boolean isLoggingResult(YourSwaggerSyncOption syncOption, String diffResult) {
+        return syncOption.isLoggingIfNewOnly() && isNewOnly(diffResult);
+    }
+
+    protected boolean isNewOnly(String diffResult) {
+        // #for_now jflute deeply depends on result expression (2021/06/28)
+        return !diffResult.contains("Changed") && !diffResult.contains("Deleted");
     }
 }
