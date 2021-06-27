@@ -64,8 +64,11 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         final Predicate<String> exceptionDeterminer = syncOption.getExceptionDeterminer().orElseGet(() -> {
             return res -> !res.isEmpty(); // as default
         });
+        final String diffMessage = buildYourSwaggerDiffMessage(diffResult);
         if (exceptionDeterminer.test(diffResult)) {
-            throwYourSwaggerDiffException(diffResult);
+            throw new YourSwaggerDiffException(diffMessage);
+        } else {
+            logger.info(diffMessage);
         }
     }
 
@@ -91,7 +94,7 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         return new OutputMetaAgent();
     }
 
-    protected void throwYourSwaggerDiffException(String diffResult) {
+    protected String buildYourSwaggerDiffMessage(String diffResult) {
         final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
         br.addNotice("Found the differences between your swagger.json and source codes.");
         br.addItem("Advice");
@@ -102,7 +105,6 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         br.addElement("So, for example, 'New' means 'Add it to source codes'.");
         br.addItem("Diff Result");
         br.addElement(diffResult);
-        final String msg = br.buildExceptionMessage();
-        throw new YourSwaggerDiffException(msg);
+        return br.buildExceptionMessage();
     }
 }

@@ -61,8 +61,20 @@ public class SwaggerDiffOption {
     // -----------------------------------------------------
     //                                         Node Handling
     //                                         -------------
-    protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
     protected BiPredicate<String, String> targetNodeLambda = getDefaultTargetNode();
+    protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
+
+    protected BiPredicate<String, String> getDefaultTargetNode() {
+        return (path, name) -> {
+            if (DfCollectionUtil.newArrayList("summary", "description", "examples").contains(name)) {
+                return false;
+            }
+            if (path.matches(".+\\.responses\\.[^.]+$")) {
+                return name.equals("200");
+            }
+            return true;
+        };
+    }
 
     // TODO awaawa hope that default logic is moved from here by jflute (2021/06/08)
     protected BiConsumer<String, JsonNode> getDefaultDiffAdjustmentNode() {
@@ -86,26 +98,20 @@ public class SwaggerDiffOption {
         };
     }
 
-    protected BiPredicate<String, String> getDefaultTargetNode() {
-        return (path, name) -> {
-            if (DfCollectionUtil.newArrayList("summary", "description", "examples").contains(name)) {
-                return false;
-            }
-            if (path.matches(".+\\.responses\\.[^.]+$")) {
-                return name.equals("200");
-            }
-            return true;
-        };
-    }
-
     // ===================================================================================
     //                                                                               Basic
     //                                                                               =====
     public void setSwaggerContentCharset(Charset swaggerContentCharset) {
+        if (swaggerContentCharset == null) {
+            throw new IllegalArgumentException("The argument 'swaggerContentCharset' should not be null.");
+        }
         this.swaggerContentCharset = swaggerContentCharset;
     }
 
     public void setDiffResultRender(Render diffResultRender) {
+        if (diffResultRender == null) {
+            throw new IllegalArgumentException("The argument 'diffResultRender' should not be null.");
+        }
         this.diffResultRender = diffResultRender;
     }
 
@@ -113,25 +119,44 @@ public class SwaggerDiffOption {
     //                                                                          Diff Logic
     //                                                                          ==========
     public SwaggerDiffOption filterLeftContent(Function<String, String> leftContentFilter) {
+        if (leftContentFilter == null) {
+            throw new IllegalArgumentException("The argument 'leftContentFilter' should not be null.");
+        }
         this.leftContentFilter = leftContentFilter;
         return this;
     }
 
-    public SwaggerDiffOption filterRightContent(Function<String, String> leftContentFilter) {
-        this.leftContentFilter = leftContentFilter;
+    public SwaggerDiffOption filterRightContent(Function<String, String> rightContentFilter) {
+        if (rightContentFilter == null) {
+            throw new IllegalArgumentException("The argument 'rightContentFilter' should not be null.");
+        }
+        this.rightContentFilter = rightContentFilter;
         return this;
     }
 
     // ===================================================================================
     //                                                                       Node Handling
     //                                                                       =============
-    // TODO awaawa hope that Jackson class is closed, wrap the JsonNode by jflute (2021/06/08)
-    public void deriveDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
-        this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
+    public void deriveTargetNode(BiPredicate<String, String> targetNodeLambda) {
+        if (targetNodeLambda == null) {
+            throw new IllegalArgumentException("The argument 'targetNodeLambda' should not be null.");
+        }
+        this.targetNodeLambda = this.targetNodeLambda.and(targetNodeLambda);
     }
 
-    public void deriveTargetNode(BiPredicate<String, String> targetNodeLambda) {
+    public void switchTargetNodeDeterminer(BiPredicate<String, String> targetNodeLambda) {
+        if (targetNodeLambda == null) {
+            throw new IllegalArgumentException("The argument 'targetNodeLambda' should not be null.");
+        }
         this.targetNodeLambda = targetNodeLambda;
+    }
+
+    // TODO awaawa hope that Jackson class is closed, wrap the JsonNode by jflute (2021/06/08)
+    public void switchDiffAdjustmentNode(BiConsumer<String, JsonNode> diffAdjustmentNodeLambda) {
+        if (diffAdjustmentNodeLambda == null) {
+            throw new IllegalArgumentException("The argument 'diffAdjustmentNodeLambda' should not be null.");
+        }
+        this.diffAdjustmentNodeLambda = diffAdjustmentNodeLambda;
     }
 
     // ===================================================================================
