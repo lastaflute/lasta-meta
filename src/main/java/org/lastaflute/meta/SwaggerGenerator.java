@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 
@@ -152,7 +153,7 @@ public class SwaggerGenerator {
             , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
             , List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) { // top-level tags
         final SwaggerSpecPathsSetupper pathsSetupper = createSwaggerSpecPathsSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
-        pathsSetupper.setupSwaggerPathsMap(generateActionDocMetaList());
+        pathsSetupper.setupSwaggerPathsMap(filterActionDocMetaList(generateActionDocMetaList()));
     }
 
     // -----------------------------------------------------
@@ -182,6 +183,15 @@ public class SwaggerGenerator {
     //                                         -------------
     protected List<ActionDocMeta> generateActionDocMetaList() {
         return new DocumentGenerator().createActionDocumentAnalyzer().analyzeAction();
+    }
+
+    protected List<ActionDocMeta> filterActionDocMetaList(List<ActionDocMeta> actionDocMetaList) {
+        // the SwaggerAction is unneeded in swagger.json (avoid noise of SwaggerDiff, RemoteApiGen)
+        return actionDocMetaList.stream().filter(meta -> !isSwaggerAction(meta)).collect(Collectors.toList());
+    }
+
+    protected boolean isSwaggerAction(ActionDocMeta meta) {
+        return LaActionSwaggerable.class.isAssignableFrom(meta.getType());
     }
 
     // ===================================================================================
