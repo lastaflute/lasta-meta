@@ -327,12 +327,10 @@ public class SwaggerSpecPathsSetupper {
         //     "tags": [
         //       "signin"
         //     ],
-        httpMethodContentMap.put("tags", prepareSwaggerMapTags(actionDocMeta));
-        final String tag = DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/");
-
-        // reflect the tags to top-level tags
-        if (tagsList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag))) {
-            tagsList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
+        final String tag = deriveActionTag(actionDocMeta);
+        httpMethodContentMap.put("tags", Arrays.asList(tag));
+        if (isNewTag(tag)) {
+            registerNewTagToTopLevel(tag); // reflect the tags to top-level tags
         }
 
         //     "responses": {
@@ -383,8 +381,20 @@ public class SwaggerSpecPathsSetupper {
     // -----------------------------------------------------
     //                                                 Tags
     //                                                ------
-    protected List<String> prepareSwaggerMapTags(ActionDocMeta actiondocMeta) {
-        return Arrays.asList(DfStringUtil.substringFirstFront(actiondocMeta.getUrl().replaceAll("^/", ""), "/"));
+    protected String deriveActionTag(ActionDocMeta actionDocMeta) {
+        if ("RootAction".equals(actionDocMeta.getType().getSimpleName())) {
+            return "root"; // fixedly
+        }
+        final String actionUrl = actionDocMeta.getUrl();
+        return DfStringUtil.substringFirstFront(actionUrl.replaceAll("^/", ""), "/"); // first element
+    }
+
+    protected boolean isNewTag(String tag) {
+        return tagsList.stream().noneMatch(swaggerTag -> swaggerTag.containsValue(tag));
+    }
+
+    protected boolean registerNewTagToTopLevel(final String tag) {
+        return tagsList.add(DfCollectionUtil.newLinkedHashMap("name", tag));
     }
 
     // -----------------------------------------------------
