@@ -34,16 +34,29 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
     //                                                                           Attribute
     //                                                                           =========
     protected final List<Consumer<SwaggerDiffOption>> swaggerDiffOptionSetupperList = new ArrayList<>();
+
+    // -----------------------------------------------------
+    //                                    SwaggerSync Option
+    //                                    ------------------
     protected boolean loggingIfNewOnly;
 
     // ===================================================================================
-    //                                                                              Option
-    //                                                                              ======
+    //                                                                           Targeting
+    //                                                                           =========
     public YourSwaggerSyncOption deriveTargetNodeAnd(BiPredicate<String, String> targetNodeLambda) {
         swaggerDiffOptionSetupperList.add(op -> op.deriveTargetNodeAnd(targetNodeLambda));
         return this;
     }
 
+    // ===================================================================================
+    //                                                                      Trailing Slash
+    //                                                                      ==============
+    public YourSwaggerSyncOption ignorePathTrailingSlash() { // best effort logic
+        swaggerDiffOptionSetupperList.add(op -> op.ignorePathTrailingSlash());
+        return this;
+    }
+
+    @Deprecated
     public YourSwaggerSyncOption removeLastaTrailingSlash() {
         swaggerDiffOptionSetupperList.add(op -> {
             op.filterLeftContent(content -> filterTrailingSlash(content));
@@ -67,6 +80,9 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
         return sb.toString();
     }
 
+    // ===================================================================================
+    //                                                             Exception determination
+    //                                                             =======================
     public YourSwaggerSyncOption asLoggingIfNewOnly() {
         loggingIfNewOnly = true;
         return this;

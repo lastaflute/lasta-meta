@@ -31,6 +31,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfResourceUtil;
 import org.dbflute.util.Srl;
 import org.lastaflute.meta.exception.LastaMetaIOException;
+import org.lastaflute.meta.swagger.diff.node.SwaggerDiffNodeHandler;
 import org.openapitools.openapidiff.core.OpenApiCompare;
 import org.openapitools.openapidiff.core.model.ChangedOpenApi;
 
@@ -51,6 +52,12 @@ public class SwaggerDiff {
     //                                                                           Attribute
     //                                                                           =========
     protected final SwaggerDiffOption swaggerDiffOption; // not null
+
+    protected final SwaggerDiffNodeHandler nodeHandler = newSwaggerDiffNodeHandler();
+
+    protected SwaggerDiffNodeHandler newSwaggerDiffNodeHandler() {
+        return new SwaggerDiffNodeHandler();
+    }
 
     // ===================================================================================
     //                                                                         Constructor
@@ -133,18 +140,24 @@ public class SwaggerDiff {
     //                                        Parsed Content
     //                                        --------------
     protected String prepareParsedContent(String swaggerContent, OptionalThing<Function<String, String>> contentFilter) {
-        final String resolvedContent = resolveSwaggerContentNode(swaggerContent);
-        return contentFilter.map(filter -> filter.apply(resolvedContent)).orElse(resolvedContent);
+        final String firstFiltered = contentFilter.map(filter -> {
+            return filter.apply(swaggerContent); // filter by plain text
+        }).orElse(swaggerContent);
+        return resolveSwaggerContentNode(firstFiltered); // filter by JSON node
     }
 
+    // -----------------------------------------------------
+    //                                       Node Adjustment
+    //                                       ---------------
     protected String resolveSwaggerContentNode(String swaggerContent) {
         try {
             final String encoding = getSwaggerDiffOption().getSwaggerContentCharset().name();
             final String decoded = decodeContent(swaggerContent, encoding);
             final ObjectMapper objectMapper = new ObjectMapper();
-            final JsonNode jsonNode = objectMapper.readTree(decoded);
-            getSwaggerDiffOption().getDiffAdjustmentNode().accept("", jsonNode);
-            return objectMapper.writeValueAsString(jsonNode);
+            final JsonNode rootNode = objectMapper.readTree(decoded);
+            selectTargetNode(rootNode);
+            filterPathTrailingSlashIfNeeds(rootNode);
+            return objectMapper.writeValueAsString(rootNode);
         } catch (IOException e) {
             throwSwaggerDiffContentReadIOException(swaggerContent, e);
             return null; // unreachable
@@ -166,6 +179,16 @@ public class SwaggerDiff {
         //    String msg = "Failed to decode the swagger content: encoding=" + encoding + ", content=" + swaggerContent;
         //    throw new IllegalStateException(msg, e);
         //}
+    }
+
+    protected void selectTargetNode(JsonNode rootNode) {
+        nodeHandler.prepareNodeTargeting(getSwaggerDiffOption().getTargetNodeLambda()).accept("", rootNode);
+    }
+
+    protected void filterPathTrailingSlashIfNeeds(JsonNode rootNode) {
+        if (getSwaggerDiffOption().isPathTrailingSlashIgnored()) {
+            nodeHandler.filterPathTrailingSlash(rootNode);
+        }
     }
 
     protected void throwSwaggerDiffContentReadIOException(String swaggerContent, IOException e) {
