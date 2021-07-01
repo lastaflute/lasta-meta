@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
+import org.dbflute.util.Srl;
 import org.lastaflute.meta.agent.outputmeta.OutputMetaAgent;
 import org.lastaflute.meta.exception.YourSwaggerDiffException;
 import org.lastaflute.meta.swagger.diff.SwaggerDiff;
@@ -108,8 +109,25 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         br.addElement("Your swagger.json is treated as master.");
         br.addElement("So, for example, 'New' means 'Add it to source codes'.");
         br.addItem("Diff Result");
-        br.addElement(diffResult);
+        br.addElement(formatDiffResult(diffResult));
         return br.buildExceptionMessage();
+    }
+
+    protected String formatDiffResult(String diffResult) {
+        // #for_now jflute depends on markdown render logic (2021/07/01)
+        String replaced = diffResult;
+        replaced = Srl.replace(replaced, "\n\n\n", "\n"); // remove large empty lines
+        replaced = Srl.replace(replaced, "\n\n", "\n"); // me too
+        replaced = Srl.replace(replaced, "#### What's", "\n\n#### What's"); // e.g. What's Deleted
+        final String changedLine = "#### What's Changed";
+        if (replaced.contains(changedLine)) {
+            // add line separator before e.g. ##### `GET`, so split and restore here
+            String front = Srl.substringFirstFront(replaced, changedLine);
+            String rear = Srl.substringFirstRear(replaced, changedLine);
+            rear = Srl.replace(rear, "\n##### ", "\n\n##### ");
+            replaced = front + changedLine + rear;
+        }
+        return replaced;
     }
 
     protected boolean isLoggingResult(YourSwaggerSyncOption syncOption, String diffResult) {
