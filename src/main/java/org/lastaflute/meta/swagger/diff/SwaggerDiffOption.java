@@ -17,11 +17,15 @@ package org.lastaflute.meta.swagger.diff;
 
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
+import org.dbflute.util.Srl;
 import org.lastaflute.meta.swagger.diff.render.LastaMetaMarkdownRender;
 import org.openapitools.openapidiff.core.output.Render;
 
@@ -48,6 +52,8 @@ public class SwaggerDiffOption {
     //                                            Diff Logic
     //                                            ----------
     protected boolean pathTrailingSlashIgnored;
+    protected final List<String> exceptedPathPrefixList = new ArrayList<>();
+    protected final List<String> exceptedPathResponseContentTypeList = new ArrayList<>();
     protected Function<String, String> leftContentFilter; // null allowed
     protected Function<String, String> rightContentFilter; // null allowed
 
@@ -60,12 +66,13 @@ public class SwaggerDiffOption {
     //protected BiConsumer<String, JsonNode> diffAdjustmentNodeLambda = getDefaultDiffAdjustmentNode();
 
     protected BiPredicate<String, String> prepareDefaultTargetItem() {
+        // #hope jflute move to node handling logic (2021/07/08)
         return (path, name) -> {
             if (DfCollectionUtil.newArrayList("summary", "description", "examples").contains(name)) {
                 return false;
             }
             if (path.matches(".+\\.responses\\.[^.]+$")) {
-                return name.equals("200");
+                return Srl.isNumberHarfAll(name) && name.startsWith("2") && name.length() == 3; // e.g. 200, 201, 204
             }
             return true;
         };
@@ -93,6 +100,22 @@ public class SwaggerDiffOption {
     //                                                                          ==========
     public SwaggerDiffOption ignorePathTrailingSlash() { // best effort logic
         pathTrailingSlashIgnored = true;
+        return this;
+    }
+
+    public SwaggerDiffOption exceptPathByPrefix(String pathPrefix) { // best effort logic
+        if (pathPrefix == null) {
+            throw new IllegalArgumentException("The argument 'pathPrefix' should not be null.");
+        }
+        exceptedPathPrefixList.add(pathPrefix);
+        return this;
+    }
+
+    public SwaggerDiffOption exceptPathResponseContentType(String contentType) { // best effort logic
+        if (contentType == null) {
+            throw new IllegalArgumentException("The argument 'contentType' should not be null.");
+        }
+        exceptedPathResponseContentTypeList.add(contentType);
         return this;
     }
 
@@ -136,11 +159,11 @@ public class SwaggerDiffOption {
     //                                                 Basic
     //                                                 -----
     public Charset getSwaggerContentCharset() {
-        return this.swaggerContentCharset;
+        return this.swaggerContentCharset; // not null with default
     }
 
     public Render getDiffResultRender() {
-        return this.diffResultRender;
+        return this.diffResultRender; // not null with default
     }
 
     // -----------------------------------------------------
@@ -148,6 +171,14 @@ public class SwaggerDiffOption {
     //                                            ----------
     public boolean isPathTrailingSlashIgnored() {
         return pathTrailingSlashIgnored;
+    }
+
+    public List<String> getExceptedPathPrefixList() {
+        return Collections.unmodifiableList(exceptedPathPrefixList);
+    }
+
+    public List<String> getExceptedPathResponseContentTypeList() {
+        return Collections.unmodifiableList(exceptedPathResponseContentTypeList);
     }
 
     public OptionalThing<Function<String, String>> getLeftContentFilter() {
@@ -166,6 +197,6 @@ public class SwaggerDiffOption {
     //                                             Targeting
     //                                             ---------
     public BiPredicate<String, String> getTargetNodeLambda() {
-        return this.targetNodeLambda;
+        return this.targetNodeLambda; // not null with default
     }
 }

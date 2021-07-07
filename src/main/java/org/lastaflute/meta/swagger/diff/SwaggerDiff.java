@@ -23,6 +23,7 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -31,7 +32,8 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfResourceUtil;
 import org.dbflute.util.Srl;
 import org.lastaflute.meta.exception.LastaMetaIOException;
-import org.lastaflute.meta.swagger.diff.node.SwaggerDiffNodeHandler;
+import org.lastaflute.meta.swagger.diff.node.SwaggerDiffNodePathFilter;
+import org.lastaflute.meta.swagger.diff.node.SwaggerDiffNodeTargeting;
 import org.openapitools.openapidiff.core.OpenApiCompare;
 import org.openapitools.openapidiff.core.model.ChangedOpenApi;
 
@@ -53,10 +55,10 @@ public class SwaggerDiff {
     //                                                                           =========
     protected final SwaggerDiffOption swaggerDiffOption; // not null
 
-    protected final SwaggerDiffNodeHandler nodeHandler = newSwaggerDiffNodeHandler();
+    protected final SwaggerDiffNodeTargeting nodeTargeting = newSwaggerDiffNodeTargeting();
 
-    protected SwaggerDiffNodeHandler newSwaggerDiffNodeHandler() {
-        return new SwaggerDiffNodeHandler();
+    protected SwaggerDiffNodeTargeting newSwaggerDiffNodeTargeting() {
+        return new SwaggerDiffNodeTargeting();
     }
 
     // ===================================================================================
@@ -77,11 +79,11 @@ public class SwaggerDiff {
     }
 
     // ===================================================================================
-    //                                                                                Diff
-    //                                                                                ====
+    //                                                                               Diff
+    //                                                                              ======
     public String diffFromLocations(String leftSwaggerLocation, String rightSwaggerLocation) {
         try {
-            final ChangedOpenApi changedOpenApi = diffFromLocationsInChangedOpenApi(leftSwaggerLocation, rightSwaggerLocation);
+            final ChangedOpenApi changedOpenApi = doDiffFromLocationsInChangedOpenApi(leftSwaggerLocation, rightSwaggerLocation);
             return swaggerDiffOption.getDiffResultRender().render(changedOpenApi);
         } catch (RuntimeException e) {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
@@ -101,10 +103,10 @@ public class SwaggerDiff {
         return value;
     }
 
-    // ===================================================================================
-    //                                                                Diff(ChangedOpenApi)
-    //                                                                ====================
-    protected ChangedOpenApi diffFromLocationsInChangedOpenApi(String leftSwaggerLocation, String rightSwaggerLocation) {
+    // -----------------------------------------------------
+    //                                     in ChangedOpenApi
+    //                                     -----------------
+    protected ChangedOpenApi doDiffFromLocationsInChangedOpenApi(String leftSwaggerLocation, String rightSwaggerLocation) {
         final Charset charset = getSwaggerDiffOption().getSwaggerContentCharset();
         try (InputStream leftIns = getInputStream(leftSwaggerLocation);
                 Reader leftReader = new InputStreamReader(leftIns, charset);
@@ -136,9 +138,9 @@ public class SwaggerDiff {
         return compareOpenAPILeftRight(leftOpenAPI, rightOpenAPI);
     }
 
-    // -----------------------------------------------------
-    //                                        Parsed Content
-    //                                        --------------
+    // ===================================================================================
+    //                                                                      Parsed Content
+    //                                                                      ==============
     protected String prepareParsedContent(String swaggerContent, OptionalThing<Function<String, String>> contentFilter) {
         final String firstFiltered = contentFilter.map(filter -> {
             return filter.apply(swaggerContent); // filter by plain text
@@ -155,8 +157,8 @@ public class SwaggerDiff {
             final String decoded = decodeContent(swaggerContent, encoding);
             final ObjectMapper objectMapper = new ObjectMapper();
             final JsonNode rootNode = objectMapper.readTree(decoded);
-            selectTargetNode(rootNode);
-            filterPathTrailingSlashIfNeeds(rootNode);
+            filterPathIfNeeds(rootNode); // should be before selecting to use all nodes for determination
+            selectTargetNode(rootNode); // so here after filtering
             return objectMapper.writeValueAsString(rootNode);
         } catch (IOException e) {
             throwSwaggerDiffContentReadIOException(swaggerContent, e);
@@ -181,14 +183,25 @@ public class SwaggerDiff {
         //}
     }
 
-    protected void selectTargetNode(JsonNode rootNode) {
-        nodeHandler.prepareNodeTargeting(getSwaggerDiffOption().getTargetNodeLambda()).accept("", rootNode);
+    protected void filterPathIfNeeds(JsonNode rootNode) {
+        final SwaggerDiffOption option = getSwaggerDiffOption();
+        final SwaggerDiffNodePathFilter filter = new SwaggerDiffNodePathFilter();
+        if (option.isPathTrailingSlashIgnored()) {
+            filter.deletePathTrailingSlash();
+        }
+        final List<String> exceptedPathPrefixList = option.getExceptedPathPrefixList();
+        for (String pathPrefix : exceptedPathPrefixList) {
+            filter.exceptPathByPrefix(pathPrefix);
+        }
+        final List<String> exceptedPathResponseContentTypeList = option.getExceptedPathResponseContentTypeList();
+        for (String contentType : exceptedPathResponseContentTypeList) {
+            filter.exceptPathByResponseContentType(contentType);
+        }
+        filter.filterPathIfNeeds(rootNode);
     }
 
-    protected void filterPathTrailingSlashIfNeeds(JsonNode rootNode) {
-        if (getSwaggerDiffOption().isPathTrailingSlashIgnored()) {
-            nodeHandler.filterPathTrailingSlash(rootNode);
-        }
+    protected void selectTargetNode(JsonNode rootNode) {
+        nodeTargeting.prepareNodeTargeting(getSwaggerDiffOption().getTargetNodeLambda()).accept("", rootNode);
     }
 
     protected void throwSwaggerDiffContentReadIOException(String swaggerContent, IOException e) {

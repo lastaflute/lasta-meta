@@ -22,9 +22,6 @@ import java.util.function.BiPredicate;
 import java.util.stream.IntStream;
 
 import org.dbflute.util.DfStringUtil;
-import org.dbflute.util.Srl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -34,9 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * @author jflute
  * @since 0.5.1 split from SwaggerDiffOption (2021/06/29 Tuesday at roppongi japanese)
  */
-public class SwaggerDiffNodeHandler {
-
-    private static final Logger logger = LoggerFactory.getLogger(SwaggerDiffNodeHandler.class);
+public class SwaggerDiffNodeTargeting {
 
     // ===================================================================================
     //                                                                           Targeting
@@ -60,30 +55,5 @@ public class SwaggerDiffNodeHandler {
                 });
             }
         };
-    }
-
-    // ===================================================================================
-    //                                                                      Trailing Slash
-    //                                                                      ==============
-    public void filterPathTrailingSlash(JsonNode rootNode) { // precondition: the JSON is paths style format
-        final JsonNode foundValue = rootNode.findValue("paths");
-        if (foundValue == null || !foundValue.isObject()) { // other version?
-            // 'paths' node exists in almost versions
-            // however warning-continue only here just in case if not found
-            logger.warn("cannot find 'paths' node in the JSON: rootNode=" + rootNode);
-            return;
-        }
-        final ObjectNode pathsObjectNode = (ObjectNode) foundValue;
-        final List<String> pathStrList = new ArrayList<>();
-        pathsObjectNode.fieldNames().forEachRemaining(fieldName -> {
-            pathStrList.add(fieldName);
-        });
-        for (String path : pathStrList) {
-            // all remove/set to keep definition order in JSON just in case
-            final JsonNode pathNode = pathsObjectNode.findPath(path);
-            final String newPath = path.endsWith("/") ? Srl.rtrim(path, "/") : path;
-            pathsObjectNode.remove(path); // by old path
-            pathsObjectNode.set(newPath, pathNode); // by new path
-        }
     }
 }

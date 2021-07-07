@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
-import org.dbflute.util.Srl;
 import org.lastaflute.meta.swagger.diff.SwaggerDiffOption;
 
 /**
@@ -44,6 +43,9 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
     //                                                                           Targeting
     //                                                                           =========
     public YourSwaggerSyncOption deriveTargetNodeAnd(BiPredicate<String, String> targetNodeLambda) {
+        if (targetNodeLambda == null) {
+            throw new IllegalArgumentException("The argument 'targetNodeLambda' should not be null.");
+        }
         swaggerDiffOptionSetupperList.add(op -> op.deriveTargetNodeAnd(targetNodeLambda));
         return this;
     }
@@ -56,28 +58,22 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
         return this;
     }
 
-    @Deprecated
-    public YourSwaggerSyncOption removeLastaTrailingSlash() {
-        swaggerDiffOptionSetupperList.add(op -> {
-            op.filterLeftContent(content -> filterTrailingSlash(content));
-        });
+    public YourSwaggerSyncOption exceptPathByPrefix(String pathPrefix) { // best effort logic
+        if (pathPrefix == null) {
+            throw new IllegalArgumentException("The argument 'pathPrefix' should not be null.");
+        }
+        swaggerDiffOptionSetupperList.add(op -> op.exceptPathByPrefix(pathPrefix));
         return this;
     }
 
-    protected String filterTrailingSlash(String leftSwaggerContent) {
-        // #needs_fix jflute depends on Lasta-presents swagger.json format here, thinking how to do by OpenAPI (2021/06/28)
-        final List<String> lineList = Srl.splitList(leftSwaggerContent, "\n");
-        final StringBuilder sb = new StringBuilder();
-        String fromStr = "/\": {"; // ends with (trailing) slash
-        for (String line : lineList) {
-            if (line.contains(fromStr) && !line.contains("\"/\"")) { // except "/" (root)
-                sb.append(Srl.replace(line, fromStr, "\": {")); // no trailing slash
-            } else {
-                sb.append(line);
-            }
-            sb.append("\n");
-        }
-        return sb.toString();
+    public YourSwaggerSyncOption exceptPathResponseHtml() { // best effort logic
+        swaggerDiffOptionSetupperList.add(op -> op.exceptPathResponseContentType("text/html"));
+        return this;
+    }
+
+    public YourSwaggerSyncOption exceptPathResponseStream() { // best effort logic
+        swaggerDiffOptionSetupperList.add(op -> op.exceptPathResponseContentType("application/octet-stream"));
+        return this;
     }
 
     // ===================================================================================
@@ -86,6 +82,16 @@ public class YourSwaggerSyncOption { // used by e.g. UTFlute and application dir
     public YourSwaggerSyncOption asLoggingIfNewOnly() {
         loggingIfNewOnly = true;
         return this;
+    }
+
+    // ===================================================================================
+    //                                                                            Consumer
+    //                                                                            ========
+    public void registerManualOption(Consumer<SwaggerDiffOption> opLambda) {
+        if (opLambda == null) {
+            throw new IllegalArgumentException("The argument 'opLambda' should not be null.");
+        }
+        swaggerDiffOptionSetupperList.add(opLambda);
     }
 
     // ===================================================================================
