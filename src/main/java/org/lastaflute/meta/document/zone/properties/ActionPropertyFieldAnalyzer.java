@@ -265,8 +265,18 @@ public class ActionPropertyFieldAnalyzer {
     }
 
     protected boolean isTargetSuffixFieldGeneric(Field field) {
+        // #thinking jflute can it fast-return if non-generic field? e.g. java.langString (2021/07/18)
         return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
-            final String fqcn = field.getGenericType().getTypeName(); // may be inner class e.g. SeaForm$MysticPart
+            // only called for non-suffix-target field type here  
+            // e.g.
+            //  fieldTypeName=java.lang.String, genericTypeName=java.lang.String
+            //  fieldTypeName=java.lang.Integer, genericTypeName=java.lang.Integer
+            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<java.lang.String>
+            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...SeaForm$MysticPart>
+            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...SeaForm$MysticPart>
+            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...MysticPart>
+            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...MysticResult>
+            final String fqcn = field.getGenericType().getTypeName();
             return determineTargetSuffixResolvedClass(fqcn, suffix);
         });
     }
