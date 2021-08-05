@@ -33,7 +33,7 @@ public class SwaggerSpecEnumHandler {
     public List<Map<String, String>> buildEnumMapList(Class<? extends Enum<?>> typeClass) {
         // cannot resolve type by maven compiler, explicitly cast it
         final List<Map<String, String>> enumMapList = Arrays.stream(typeClass.getEnumConstants()).map(enumConstant -> {
-            Map<String, String> map = DfCollectionUtil.newLinkedHashMap("name", enumConstant.name());
+            final Map<String, String> map = DfCollectionUtil.newLinkedHashMap("name", enumConstant.name());
             if (enumConstant instanceof Classification) {
                 map.put("code", ((Classification) enumConstant).code());
                 map.put("alias", ((Classification) enumConstant).alias());

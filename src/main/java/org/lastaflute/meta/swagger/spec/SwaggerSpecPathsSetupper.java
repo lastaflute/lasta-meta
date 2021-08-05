@@ -27,6 +27,7 @@ import javax.validation.constraints.Size;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
+import org.dbflute.util.DfTypeUtil;
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
@@ -582,14 +583,27 @@ public class SwaggerSpecPathsSetupper {
 
     protected String buildEnumDescription(Class<? extends Enum<?>> enumType, List<Map<String, String>> enumMapList,
             TypeDocMeta typeDocMeta) {
-        String description = typeDocMeta.getDescription();
-        if (DfStringUtil.is_Null_or_Empty(description)) {
-            description = typeDocMeta.getPublicName();
+        final StringBuilder sb = new StringBuilder();
+        final String description = typeDocMeta.getDescription();
+        if (DfStringUtil.is_NotNull_and_NotTrimmedEmpty(description)) {
+            sb.append(description).append(":");
         }
-        description += ":" + enumMapList.stream().map(enumMap -> {
-            return String.format(" * `%s` - %s, %s.", enumMap.get("code"), enumMap.get("name"), enumMap.get("alias"));
+        final String contentExp = enumMapList.stream().map(enumMap -> {
+            final String code = enumMap.get("code");
+            final String name = enumMap.get("name");
+            final String alias = enumMap.get("alias");
+            final String formatted;
+            if (name != null && alias != null && name.equals(alias)) {
+                formatted = String.format(" * `%s` - %s.", code, name);
+            } else {
+                formatted = String.format(" * `%s` - %s, %s.", code, name, alias);
+            }
+            return formatted;
         }).collect(Collectors.joining());
-        return description;
+        sb.append(contentExp);
+        final String enumTitle = DfTypeUtil.toClassTitle(enumType); // e.g. AppCDef.PublicProductStatus
+        sb.append(" :: fromCls(").append(enumTitle).append(")"); // for server reference
+        return sb.toString();
     }
 
     // -----------------------------------------------------
