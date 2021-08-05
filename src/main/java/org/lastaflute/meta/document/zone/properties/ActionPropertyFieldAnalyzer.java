@@ -201,7 +201,7 @@ public class ActionPropertyFieldAnalyzer {
                 meta.setSimpleTypeName(buildGenericThreeLayerSimpleTypeName(type, typeArgumentClass, currentTypeName));
             }
         } else { // e.g. String, Integer, LocalDate, Sea<MysticResult>, List<Integer>, List<CDef.StageType>
-            // TODO p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
+            // #needs_fix p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
             final Type fieldGenericType = field.getGenericType(); // not null (returning Integer if Integer)
             if (fieldGenericType.getTypeName().matches(".*<(.*)>")) { // e.g. Sea<MysticResult>, List<Integer>, List<CDef.StageType>
                 final String genericTypeName = fieldGenericType.getTypeName().replaceAll(".*<(.*)>", "$1");
@@ -294,18 +294,28 @@ public class ActionPropertyFieldAnalyzer {
     }
 
     protected boolean isTargetSuffixFieldGeneric(Field field) {
-        // #thinking jflute can it fast-return if non-generic field? e.g. java.langString (2021/07/18)
+        final Type genericType = field.getGenericType();
+        final String genericTypeName = genericType.getTypeName(); // not null (same type if non generic)
+        if (!genericTypeName.contains("<") || !genericTypeName.contains(">")) { // e.g. String, Integer
+            return false; // non generic
+        }
+        // genericTypeName is e.g.
+        //  java.util.List<java.lang.String> => false
+        //  java.util.List<ROOM> => false
+        //  java.util.List<...SeaForm$MysticPart> => true
+        //  java.util.List<...MysticPart> => true
+        //  java.util.List<...MysticResult> => true
+        final Class<?> genericFirstClass = LdiGenericUtil.getGenericFirstClass(genericType);
+        if (genericFirstClass == null) { // e.g. java.util.List<ROOM>
+            return false; // generic variable yet
+        }
+        // fqcn is e.g.
+        //  java.lang.String => false
+        //  ...SeaForm$MysticPart => true
+        //  ...MysticPart => true
+        //  ...MysticResult => true
+        final String fqcn = genericFirstClass.getName();
         return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
-            // only called for non-suffix-target field type here  
-            // e.g. fieldTypeName :: genericTypeName
-            //  java.lang.String :: java.lang.String => false
-            //  java.lang.Integer :: java.lang.Integer => false
-            //  java.util.List :: java.util.List<java.lang.String> => false
-            //  java.util.List :: java.util.List<...SeaForm$MysticPart> => true
-            //  java.util.List :: java.util.List<...SeaForm$MysticPart> => true
-            //  java.util.List :: java.util.List<...MysticPart> => true
-            //  java.util.List :: java.util.List<...MysticResult> => true
-            final String fqcn = field.getGenericType().getTypeName();
             return determineTargetSuffixResolvedClass(fqcn, suffix);
         });
     }
