@@ -18,6 +18,7 @@ package org.lastaflute.meta.swagger.spec.parts.defaultvalue;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -80,14 +81,15 @@ public class SwaggerSpecDefaultValueHandler {
                 }).collect(Collectors.toList()));
             }
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
-            Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
+            final Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
             if (defaultValue != null) {
                 return OptionalThing.of(defaultValue);
-            } else {
+            } else { // use first Enum element as default
                 @SuppressWarnings("unchecked")
-                Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
-                List<Map<String, String>> enumMapList = enumHandler.buildEnumMapList(enumClass);
-                return OptionalThing.migratedFrom(enumMapList.stream().map(e -> (Object) e.get("code")).findFirst(), () -> {
+                final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
+                final List<Map<String, String>> enumMapList = enumHandler.buildEnumMapList(enumClass);
+                final Optional<Object> firstEnumElement = enumMapList.stream().map(e -> (Object) e.get("code")).findFirst();
+                return OptionalThing.migratedFrom(firstEnumElement, () -> {
                     throw new IllegalStateException("not found enum value.");
                 });
             }

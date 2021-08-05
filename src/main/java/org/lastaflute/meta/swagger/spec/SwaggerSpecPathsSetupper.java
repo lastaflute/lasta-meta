@@ -479,27 +479,18 @@ public class SwaggerSpecPathsSetupper {
             return JsonParameter.class.isAssignableFrom(annotationType.getClass());
         })) {
             parameterMap.put("type", "string");
-            // TODO p1us2er0 set description and example. (2018/09/30)
+            // #needs_fix p1us2er0 set description and example. (2018/09/30)
         } else if (Iterable.class.isAssignableFrom(typeDocMeta.getType())) {
-            setupBeanList(typeDocMeta, typeMap, parameterMap);
+            setupArrayAttribute(parameterMap, typeDocMeta, typeMap);
         } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             parameterMap.put("type", "object");
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
-            parameterMap.put("type", "string");
+            // e.g. public AppCDef.PublicProductStatus productStatus;
             @SuppressWarnings("unchecked")
-            final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
-            final List<Map<String, String>> enumMap = enumHandler.buildEnumMapList(enumClass);
-            parameterMap.put("enum", enumMap.stream().map(e -> e.get("code")).collect(Collectors.toList()));
-            String description = typeDocMeta.getDescription();
-            if (DfStringUtil.is_Null_or_Empty(description)) {
-                description = typeDocMeta.getPublicName();
-            }
-            description += ":" + enumMap.stream().map(e -> {
-                return String.format(" * `%s` - %s, %s.", e.get("code"), e.get("name"), e.get("alias"));
-            }).collect(Collectors.joining());
-            parameterMap.put("description", description);
+            final Class<? extends Enum<?>> enumType = (Class<? extends Enum<?>>) typeDocMeta.getType();
+            setupEnumAttribute(parameterMap, enumType, typeDocMeta);
         } else if (!nativeDataTypeList.contains(typeDocMeta.getType())) {
-            String definition = putDefinition(typeDocMeta);
+            final String definition = putDefinitionAttribute(typeDocMeta);
             parameterMap.clear();
             parameterMap.put("name", typeDocMeta.getPublicName());
             parameterMap.put("$ref", definition);
@@ -529,35 +520,82 @@ public class SwaggerSpecPathsSetupper {
         return parameterMap;
     }
 
-    protected void setupBeanList(TypeDocMeta typeDocMeta, Map<Class<?>, SwaggerSpecDataType> dataTypeMap, Map<String, Object> schemaMap) {
+    // -----------------------------------------------------
+    //                                       Array Attribute
+    //                                       ---------------
+    protected void setupArrayAttribute(Map<String, Object> schemaMap, TypeDocMeta typeDocMeta,
+            Map<Class<?>, SwaggerSpecDataType> dataTypeMap) {
         schemaMap.put("type", "array");
         if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
-            final String definition = putDefinition(typeDocMeta);
+            final String definition = putDefinitionAttribute(typeDocMeta);
             schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("$ref", definition));
         } else {
-            final Map<String, String> items = DfCollectionUtil.newLinkedHashMap();
+            final Map<String, Object> itemsMap = DfCollectionUtil.newLinkedHashMap();
             final Class<?> genericType = typeDocMeta.getGenericType();
             if (genericType != null) {
                 final SwaggerSpecDataType swaggerDataType = dataTypeMap.get(genericType);
                 if (swaggerDataType != null) {
-                    items.put("type", swaggerDataType.type);
+                    itemsMap.put("type", swaggerDataType.type);
                     final String format = swaggerDataType.format;
                     if (DfStringUtil.is_NotNull_and_NotEmpty(format)) {
-                        items.put("format", format);
+                        itemsMap.put("format", format);
+                    }
+                } else { // e.g. List<CDef.StageType> or List<UnknownType>
+                    if (Enum.class.isAssignableFrom(genericType)) {
+                        // e.g. public List<AppCDef.PublicProductStatus> pastProductStatuses;
+                        @SuppressWarnings("unchecked")
+                        final Class<? extends Enum<?>> enumType = (Class<? extends Enum<?>>) genericType;
+                        setupEnumAttribute(itemsMap, enumType, typeDocMeta);
                     }
                 }
             }
-            if (!items.containsKey("type")) {
-                items.put("type", "object");
+            if (!itemsMap.containsKey("type")) {
+                itemsMap.put("type", "object");
             }
-            schemaMap.put("items", items);
+            schemaMap.put("items", itemsMap);
         }
         if (typeDocMeta.getSimpleTypeName().matches(".*List<.*List<.*")) {
             schemaMap.put("items", DfCollectionUtil.newLinkedHashMap("type", "array", "items", schemaMap.get("items")));
         }
     }
 
-    protected String putDefinition(TypeDocMeta typeDocMeta) {
+    // -----------------------------------------------------
+    //                                        Enum Attribute
+    //                                        --------------
+    protected void setupEnumAttribute(Map<String, Object> attrMap, Class<? extends Enum<?>> enumType, TypeDocMeta typeDocMeta) {
+        attrMap.put("type", "string");
+
+        // #for_now jflute typeDocMeta.value (enum expression for LastaDoc) is not used here (2021/08/06)
+        // directly extract it from Enum type, ...small dependency so enough?
+        final List<Map<String, String>> enumMapList = prepareEnumMapList(enumType);
+        attrMap.put("enum", buildEnumCodeList(enumMapList));
+        attrMap.put("description", buildEnumDescription(enumType, enumMapList, typeDocMeta));
+    }
+
+    protected List<Map<String, String>> prepareEnumMapList(Class<? extends Enum<?>> enumType) {
+        return enumHandler.buildEnumMapList(enumType);
+    }
+
+    protected List<String> buildEnumCodeList(List<Map<String, String>> enumMapList) {
+        return enumMapList.stream().map(em -> em.get("code")).collect(Collectors.toList());
+    }
+
+    protected String buildEnumDescription(Class<? extends Enum<?>> enumType, List<Map<String, String>> enumMapList,
+            TypeDocMeta typeDocMeta) {
+        String description = typeDocMeta.getDescription();
+        if (DfStringUtil.is_Null_or_Empty(description)) {
+            description = typeDocMeta.getPublicName();
+        }
+        description += ":" + enumMapList.stream().map(enumMap -> {
+            return String.format(" * `%s` - %s, %s.", enumMap.get("code"), enumMap.get("name"), enumMap.get("alias"));
+        }).collect(Collectors.joining());
+        return description;
+    }
+
+    // -----------------------------------------------------
+    //                                  Definition Attribute
+    //                                  --------------------
+    protected String putDefinitionAttribute(TypeDocMeta typeDocMeta) {
         //     "org.docksidestage.app.web.mypage.MypageResult": {
         //       "type": "object",
         //       "required": [
@@ -583,7 +621,7 @@ public class SwaggerSpecPathsSetupper {
             schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
                 return toParameterMap(nestTypeDocMeta);
             }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-                // TODO p1us2er0 remove name. refactor required. (2017/10/12)
+                // #needs_fix p1us2er0 remove name. refactor required. (2017/10/12)
                 final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
                 property.remove("name");
                 return property;
