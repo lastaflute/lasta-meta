@@ -28,6 +28,7 @@ import org.dbflute.jdbc.Classification;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfReflectionUtil;
 import org.dbflute.util.DfReflectionUtil.ReflectionFailureException;
+import org.lastaflute.di.util.tiger.LdiGenericUtil;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.document.parts.action.FormFieldNameAdjuster;
 import org.lastaflute.meta.document.parts.annotation.MetaAnnotationArranger;
@@ -139,7 +140,7 @@ public class ActionPropertyFieldAnalyzer {
             }
             if (resolvedClass.isEnum()) {
                 // e.g. public AppCDef.PublicProductStatus productStatus;
-                // #for_now jflute this expression is only for field comment of LastaDoc (swagger extracts type directly) (2021/08/05)
+                // #for_now jflute only for field comment of LastaDoc (swagger extracts from type directly) (2021/08/05)
                 meta.setValue(buildEnumValuesExp(resolvedClass)); // e.g. {FML = Formalized, PRV = Provisinal, ...}
             }
         }
@@ -227,6 +228,13 @@ public class ActionPropertyFieldAnalyzer {
                     final String typeName = meta.getTypeName();
                     meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericTypeName) + ">");
                     meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericTypeName) + ">");
+
+                    final Class<?> genericFirstClass = LdiGenericUtil.getGenericFirstClass(fieldGenericType);
+                    if (genericFirstClass != null && genericFirstClass.isEnum()) { // null check just in case
+                        // e.g. public List<AppCDef.PublicProductStatus> pastProductStatuses;
+                        // #for_now jflute only for field comment of LastaDoc (swagger extracts from type directly) (2021/08/05)
+                        meta.setValue(buildEnumValuesExp(genericFirstClass)); // e.g. {FML = Formalized, PRV = Provisinal, ...}
+                    }
                 }
             }
         }
