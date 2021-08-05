@@ -53,6 +53,8 @@ public class TypeDocMeta {
     // -----------------------------------------------------
     //                                          Comment Item
     //                                          ------------
+    // #thinking jflute the name "value" is too easy so... e.g. valueExpression? (2021/08/06)
+    // #for_now jflute only referred at field comment of LastaDoc (swagger extracts type directly) (2021/08/05)
     /** The value expression of the type, for example, enum values. (NullAllowed) */
     private String value; // e.g. {FML = Formalized, PRV = Provisinal, ...}
 
@@ -140,7 +142,7 @@ public class TypeDocMeta {
     // -----------------------------------------------------
     //                                          Comment Item
     //                                          ------------
-    public String getValue() {
+    public String getValue() { // used by velocity template
         return value;
     }
 

@@ -138,6 +138,8 @@ public class ActionPropertyFieldAnalyzer {
                 resolvedClass = (Class<?>) DfReflectionUtil.getGenericParameterTypes(resolvedType)[0];
             }
             if (resolvedClass.isEnum()) {
+                // e.g. public AppCDef.PublicProductStatus productStatus;
+                // #for_now jflute this expression is only for field comment of LastaDoc (swagger extracts type directly) (2021/08/05)
                 meta.setValue(buildEnumValuesExp(resolvedClass)); // e.g. {FML = Formalized, PRV = Provisinal, ...}
             }
         }
@@ -179,31 +181,29 @@ public class ActionPropertyFieldAnalyzer {
             //      }
             //  }
             // _/_/_/_/_/_/_/_/_/_/
-            Type type = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
+            final Type type = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
             if (type instanceof Class<?>) {
                 final Class<?> typeArgumentClass = (Class<?>) type;
                 final List<TypeDocMeta> nestTypeDocMetaList = actionPropertiesAnalyzer.analyzeProperties(typeArgumentClass, nestDepth);
                 meta.setNestTypeDocMetaList(nestTypeDocMetaList);
                 // overriding type names that are already set before
                 final String currentTypeName = meta.getTypeName();
-                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">");
-                meta.setSimpleTypeName(adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">");
+                meta.setTypeName(buildGenericTwoLayerTypeName(typeArgumentClass, currentTypeName));
+                meta.setSimpleTypeName(buildGenericTwoLayerSimpleTypeName(typeArgumentClass, currentTypeName));
             } else if (type instanceof ParameterizedType) {
                 final Class<?> typeArgumentClass = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
                 final List<TypeDocMeta> nestTypeDocMetaList = actionPropertiesAnalyzer.analyzeProperties(typeArgumentClass, nestDepth);
                 meta.setNestTypeDocMetaList(nestTypeDocMetaList);
                 // overriding type names that are already set before
                 final String currentTypeName = meta.getTypeName();
-                meta.setTypeName(adjustTypeName(currentTypeName) + "<" + adjustTypeName(((ParameterizedType) type).getRawType()) + "<"
-                        + adjustTypeName(typeArgumentClass) + ">>");
-                meta.setSimpleTypeName(
-                        adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(((ParameterizedType) type).getRawType()) + "<"
-                                + adjustSimpleTypeName(typeArgumentClass) + ">>");
+                meta.setTypeName(buildGenericThreeLayerTypeName(type, typeArgumentClass, currentTypeName));
+                meta.setSimpleTypeName(buildGenericThreeLayerSimpleTypeName(type, typeArgumentClass, currentTypeName));
             }
-        } else { // e.g. String, Integer, LocalDate, Sea<Mystic>
+        } else { // e.g. String, Integer, LocalDate, Sea<MysticResult>, List<Integer>, List<CDef.StageType>
             // TODO p1us2er0 optimisation, generic handling in analyzePropertyField() (2017/09/26)
-            if (field.getGenericType().getTypeName().matches(".*<(.*)>")) { // e.g. Sea<Mystic>
-                final String genericTypeName = field.getGenericType().getTypeName().replaceAll(".*<(.*)>", "$1");
+            final Type fieldGenericType = field.getGenericType(); // not null (returning Integer if Integer)
+            if (fieldGenericType.getTypeName().matches(".*<(.*)>")) { // e.g. Sea<MysticResult>, List<Integer>, List<CDef.StageType>
+                final String genericTypeName = fieldGenericType.getTypeName().replaceAll(".*<(.*)>", "$1");
 
                 // generic item
                 try {
@@ -213,7 +213,7 @@ public class ActionPropertyFieldAnalyzer {
                 }
 
                 final Type genericClass = genericParameterTypesMap.get(genericTypeName);
-                if (genericClass != null) { // the generic is defined at top definition (e.g. return)
+                if (genericClass != null) { // e.g. Sea<MysticResult> (Sea<BEAN>)
                     final List<TypeDocMeta> nestTypeDocMetaList =
                             actionPropertiesAnalyzer.analyzeProperties((Class<?>) genericClass, nestDepth);
                     meta.setNestTypeDocMetaList(nestTypeDocMetaList);
@@ -222,7 +222,7 @@ public class ActionPropertyFieldAnalyzer {
                     final String typeName = meta.getTypeName();
                     meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericClass) + ">");
                     meta.setSimpleTypeName(adjustSimpleTypeName(typeName) + "<" + adjustSimpleTypeName(genericClass) + ">");
-                } else {
+                } else { // e.g. List<Integer>, List<CDef.StageType>
                     // overriding type names that are already set before
                     final String typeName = meta.getTypeName();
                     meta.setTypeName(adjustTypeName(typeName) + "<" + adjustTypeName(genericTypeName) + ">");
@@ -232,19 +232,40 @@ public class ActionPropertyFieldAnalyzer {
         }
     }
 
+    protected String buildGenericTwoLayerTypeName(Class<?> typeArgumentClass, String currentTypeName) {
+        return adjustTypeName(currentTypeName) + "<" + adjustTypeName(typeArgumentClass) + ">";
+    }
+
+    protected String buildGenericTwoLayerSimpleTypeName(final Class<?> typeArgumentClass, final String currentTypeName) {
+        return adjustSimpleTypeName(currentTypeName) + "<" + adjustSimpleTypeName(typeArgumentClass) + ">";
+    }
+
+    protected String buildGenericThreeLayerTypeName(Type type, Class<?> typeArgumentClass, String currentTypeName) {
+        final String rootType = adjustTypeName(currentTypeName);
+        final String nestType = adjustTypeName(((ParameterizedType) type).getRawType());
+        final String moreNestType = adjustTypeName(typeArgumentClass);
+        return rootType + "<" + nestType + "<" + moreNestType + ">>";
+    }
+
+    protected String buildGenericThreeLayerSimpleTypeName(Type type, Class<?> typeArgumentClass, String currentTypeName) {
+        final String rootType = adjustSimpleTypeName(currentTypeName);
+        final String nestType = adjustSimpleTypeName(((ParameterizedType) type).getRawType());
+        final String moreNestType = adjustSimpleTypeName(typeArgumentClass);
+        return rootType + "<" + nestType + "<" + moreNestType + ">>";
+    }
+
     // ===================================================================================
     //                                                                         ENUM Values
     //                                                                         ===========
     protected String buildEnumValuesExp(Class<?> typeClass) {
-        // cannot resolve type by maven compiler, explicitly cast it
         final String valuesExp;
         if (Classification.class.isAssignableFrom(typeClass)) {
             @SuppressWarnings("unchecked")
             final Class<Classification> clsType = ((Class<Classification>) typeClass);
             valuesExp = Arrays.stream(clsType.getEnumConstants()).collect(Collectors.toMap(keyMapper -> {
-                return ((Classification) keyMapper).code();
+                return ((Classification) keyMapper).code(); // cannot be resolved by maven compiler, explicitly cast it
             }, valueMapper -> {
-                return ((Classification) valueMapper).alias();
+                return ((Classification) valueMapper).alias(); // me too
             }, (u, v) -> v, LinkedHashMap::new)).toString(); // e.g. {FML = Formalized, PRV = Provisinal, ...}
         } else {
             final Enum<?>[] constants = (Enum<?>[]) typeClass.getEnumConstants();
@@ -268,14 +289,14 @@ public class ActionPropertyFieldAnalyzer {
         // #thinking jflute can it fast-return if non-generic field? e.g. java.langString (2021/07/18)
         return getTargetTypeSuffixList().stream().anyMatch(suffix -> {
             // only called for non-suffix-target field type here  
-            // e.g.
-            //  fieldTypeName=java.lang.String, genericTypeName=java.lang.String
-            //  fieldTypeName=java.lang.Integer, genericTypeName=java.lang.Integer
-            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<java.lang.String>
-            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...SeaForm$MysticPart>
-            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...SeaForm$MysticPart>
-            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...MysticPart>
-            //  fieldTypeName=java.util.List, genericTypeName=java.util.List<...MysticResult>
+            // e.g. fieldTypeName :: genericTypeName
+            //  java.lang.String :: java.lang.String => false
+            //  java.lang.Integer :: java.lang.Integer => false
+            //  java.util.List :: java.util.List<java.lang.String> => false
+            //  java.util.List :: java.util.List<...SeaForm$MysticPart> => true
+            //  java.util.List :: java.util.List<...SeaForm$MysticPart> => true
+            //  java.util.List :: java.util.List<...MysticPart> => true
+            //  java.util.List :: java.util.List<...MysticResult> => true
             final String fqcn = field.getGenericType().getTypeName();
             return determineTargetSuffixResolvedClass(fqcn, suffix);
         });
