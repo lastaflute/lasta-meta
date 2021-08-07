@@ -15,11 +15,21 @@
  */
 package org.lastaflute.meta.swagger.spec.zone.parameter;
 
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.validation.Constraint;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 import org.dbflute.optional.OptionalThing;
@@ -126,31 +136,16 @@ public class SwaggerSpecParameterSetupper {
             parameterMap.put("type", "object");
         }
 
-        typeDocMeta.getAnnotationTypeList().forEach(annotation -> {
-            if (annotation instanceof Size) {
-                final Size size = (Size) annotation;
-                parameterMap.put("minimum", size.min());
-                parameterMap.put("maximum", size.max());
-            }
-            if (annotation instanceof Length) {
-                final Length length = (Length) annotation;
-                parameterMap.put("minLength", length.min());
-                parameterMap.put("maxLength", length.max());
-            }
-            // pattern, maxItems, minItems
-        });
-
-        defaultValueHandler.deriveDefaultValue(typeDocMeta).ifPresent(defaultValue -> {
-            parameterMap.put("example", defaultValue);
-        });
+        setupValidationAttribute(typeDocMeta, parameterMap);
+        setupExampleAttribute(typeDocMeta, parameterMap);
 
         typeDocMeta.setType(keepType);
         return parameterMap;
     }
 
-    // -----------------------------------------------------
-    //                                       Array Attribute
-    //                                       ---------------
+    // ===================================================================================
+    //                                                                     Array Attribute
+    //                                                                     ===============
     protected void setupArrayAttribute(Map<String, Object> schemaMap, TypeDocMeta typeDocMeta,
             Map<String, Map<String, Object>> definitionsMap, Map<Class<?>, SwaggerSpecDataType> dataTypeMap) {
         schemaMap.put("type", "array");
@@ -187,9 +182,9 @@ public class SwaggerSpecParameterSetupper {
         }
     }
 
-    // -----------------------------------------------------
-    //                                        Enum Attribute
-    //                                        --------------
+    // ===================================================================================
+    //                                                                      Enum Attribute
+    //                                                                      ==============
     protected void setupEnumAttribute(Map<String, Object> attrMap, Class<? extends Enum<?>> enumType, TypeDocMeta typeDocMeta) {
         attrMap.put("type", "string");
 
@@ -231,6 +226,110 @@ public class SwaggerSpecParameterSetupper {
         final String enumTitle = DfTypeUtil.toClassTitle(enumType); // e.g. AppCDef.PublicProductStatus
         sb.append(" :: fromCls(").append(enumTitle).append(")"); // for server reference
         return sb.toString();
+    }
+
+    // ===================================================================================
+    //                                                                Validation Attribute
+    //                                                                ====================
+    protected void setupValidationAttribute(TypeDocMeta typeDocMeta, Map<String, Object> parameterMap) {
+        toOrderedAnnotationList(typeDocMeta.getAnnotationTypeList()).forEach(annotation -> {
+            // best effort logic here, add logics on demand and simply overwrite if conflict
+            // #for_now jflute determination of @Valid existence is so difficult (2021/08/07)
+            handleValidationAnnotationIfNeeds(annotation, parameterMap);
+
+            // #for_now jflute one nest only (2021/08/07)
+            toOrderedAnnotationList(annotation.annotationType().getAnnotations()).forEach(nestAnno -> {
+                handleValidationAnnotationIfNeeds(nestAnno, parameterMap);
+            });
+        });
+    }
+
+    // -----------------------------------------------------
+    //                               Ordered Annotation List
+    //                               -----------------------
+    // to fix attribute order on swagger.json
+    protected List<Annotation> toOrderedAnnotationList(List<Annotation> providedList) {
+        final List<Annotation> orderedList = new ArrayList<>(providedList);
+        Collections.sort(orderedList, Comparator.comparing(anno -> {
+            // simple order by class name
+            // source code order depends on source parser so not uses here
+            // (basically conflict validation should be fixed by application) 
+            return anno.getClass().getName();
+        }));
+        return orderedList;
+    }
+
+    protected List<Annotation> toOrderedAnnotationList(Annotation[] providedAry) {
+        return toOrderedAnnotationList(Arrays.asList(providedAry));
+    }
+
+    // -----------------------------------------------------
+    //                                   Annotation Handling
+    //                                   -------------------
+    protected void handleValidationAnnotationIfNeeds(Annotation annotation, Map<String, Object> parameterMap) {
+        if (!isValidationAnnotation(annotation)) { // e.g. @Valid, @ValidateTypeFailure
+            return;
+        }
+        // #for_now jflute pending maxItems, minItems for array (2021/08/07)
+        doHandleValidationLength(annotation, parameterMap);
+        doHandleValidationSize(annotation, parameterMap);
+        doHandleValidationPattern(annotation, parameterMap);
+        doHandleValidationEmail(annotation, parameterMap);
+        doHandleValidationMinMax(annotation, parameterMap);
+    }
+
+    protected boolean isValidationAnnotation(Annotation annotation) {
+        return annotation.annotationType().getAnnotation(Constraint.class) != null;
+    }
+
+    protected void doHandleValidationLength(Annotation annotation, Map<String, Object> parameterMap) {
+        if (annotation instanceof Length) { // hibernate
+            final Length length = (Length) annotation;
+            parameterMap.put("minLength", length.min());
+            parameterMap.put("maxLength", length.max());
+        }
+    }
+
+    protected void doHandleValidationSize(Annotation annotation, Map<String, Object> parameterMap) {
+        if (annotation instanceof Size) { // javax
+            final Size size = (Size) annotation;
+            parameterMap.put("minLength", size.min());
+            parameterMap.put("maxLength", size.max());
+        }
+    }
+
+    protected void doHandleValidationPattern(Annotation annotation, Map<String, Object> parameterMap) {
+        if (annotation instanceof Pattern) { // javax
+            final Pattern pattern = (Pattern) annotation;
+            parameterMap.put("pattern", pattern.regexp());
+        }
+    }
+
+    protected void doHandleValidationEmail(Annotation annotation, Map<String, Object> parameterMap) {
+        if (annotation instanceof Email) { // javax
+            final Email email = (Email) annotation;
+            parameterMap.put("pattern", email.regexp());
+        }
+    }
+
+    protected void doHandleValidationMinMax(Annotation annotation, Map<String, Object> parameterMap) {
+        if (annotation instanceof Min) { // javax
+            final Min min = (Min) annotation;
+            parameterMap.put("minimum", min.value());
+        }
+        if (annotation instanceof Max) { // javax
+            final Max max = (Max) annotation;
+            parameterMap.put("maximum", max.value());
+        }
+    }
+
+    // ===================================================================================
+    //                                                                   Example Attribute
+    //                                                                   =================
+    protected void setupExampleAttribute(TypeDocMeta typeDocMeta, final Map<String, Object> parameterMap) {
+        defaultValueHandler.deriveDefaultValue(typeDocMeta).ifPresent(defaultValue -> {
+            parameterMap.put("example", defaultValue);
+        });
     }
 
     // ===================================================================================
