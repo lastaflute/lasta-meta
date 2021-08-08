@@ -332,7 +332,7 @@ public class SwaggerSpecPathsSetupper {
         prepareResponses(httpMethodContentMap, actionDocMeta);
 
         if (!optionalPathNameList.isEmpty()) {
-            doSetupSwaggerPathsMapForOptionalPath(actionDocMeta, optionalPathNameList);
+            prepareOptionalParameterPath(actionDocMeta, optionalPathNameList);
         }
     }
 
@@ -394,33 +394,63 @@ public class SwaggerSpecPathsSetupper {
     // -----------------------------------------------------
     //                                     for Optional Path
     //                                     -----------------
-    protected void doSetupSwaggerPathsMapForOptionalPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
-        final String actionUrl = actionDocMeta.getUrl();
+    protected void prepareOptionalParameterPath(ActionDocMeta actionDocMeta, List<String> optionalPathNameList) {
+        // copy optional parameter path to non-parameter path
+        //  e.g. /product/list/{pageNumber} to /product/list
+        final String actionUrl = actionDocMeta.getUrl(); // e.g. /product/list/{pageNumber}
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
+
+        // to make snapshot of swaggerHttpMethodMap for optional variation
         final String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
 
+        // loop: e.g. sea, land, piari, if /maihama/{sea}/{land}/{piari}
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
-            List<String> deleteOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
-            String deleteOptionalPathNameUrl = deleteOptionalPathNameList.stream().reduce(actionUrl, (aactionUrl, optionalPathName) -> {
-                return aactionUrl.replaceAll("/\\{" + optionalPathName + "\\}", "");
+            // [sea, land, piari] if current {sea}
+            // [land, piari] if current {land}
+            // [piari] if current [piari]
+            final List<String> currentOptionalPathNameList = optionalPathNameList.subList(index, optionalPathNameList.size());
+
+            // /maihama if current {sea}
+            // /maihama/{sea} if current {land}
+            // /maihama/{sea}/{land} if current {piari}
+            final String currentUrl = currentOptionalPathNameList.stream().reduce(actionUrl, (workingActionUrl, optionalPathName) -> {
+                return workingActionUrl.replaceAll("/\\{" + optionalPathName + "\\}", "");
             });
+
             // arrange swaggerUrlMap in swaggerPathMap if needs
-            if (!pathsMap.containsKey(deleteOptionalPathNameUrl)) { // first action for the URL
-                pathsMap.put(deleteOptionalPathNameUrl, DfCollectionUtil.newLinkedHashMap());
+            if (!pathsMap.containsKey(currentUrl)) { // first action for the URL
+                pathsMap.put(currentUrl, DfCollectionUtil.newLinkedHashMap());
             }
-            Map<String, Object> swaggerHttpMethodMap =
-                    swaggeruseJsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
-                    }.getType());
-            @SuppressWarnings("unchecked")
-            final List<Map<String, Object>> parameterMapList =
-                    ((List<Map<String, Object>>) swaggerHttpMethodMap.get("parameters")).stream().filter(parameter -> {
-                        return !deleteOptionalPathNameList.contains(parameter.get("name"));
-                    }).collect(Collectors.toList());
-            swaggerHttpMethodMap.put("parameters", parameterMapList);
-            pathsMap.get(deleteOptionalPathNameUrl).put(httpMethod, swaggerHttpMethodMap);
+
+            // prepare swaggerHttpMethodMap for current optional path
+            final Map<String, Object> swaggerHttpMethodMap = prepareOptionalSwaggerHttpMethodMap(json, currentOptionalPathNameList);
+
+            // register HTTP Method definition for current optional path
+            pathsMap.get(currentUrl).put(httpMethod, swaggerHttpMethodMap);
         });
         final Map<String, Object> swaggerUrlMap = pathsMap.remove(actionUrl);
         pathsMap.put(actionUrl, swaggerUrlMap);
+    }
+
+    protected Map<String, Object> prepareOptionalSwaggerHttpMethodMap(String json, List<String> currentOptionalPathNameList) {
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // #for_now jflute giving up "10.0 problem" for e.g. minLength, maxLength (2021/08/08)
+        //  on JSON :: minLength: 10
+        //  on Map  :: minLength: 10.0
+        // Gson specification: number is treated as decial when to Map from JSON
+        // however optional parameter is rare case if JSON API, so no care for now
+        // _/_/_/_/_/_/_/_/_/_/
+        final Map<String, Object> swaggerHttpMethodMap =
+                swaggeruseJsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
+                }.getType()); // must be mutable
+        final String parametersKey = "parameters";
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> parametersSnapshotList = (List<Map<String, Object>>) swaggerHttpMethodMap.get(parametersKey);
+        final List<Map<String, Object>> filteredParameterMapList = parametersSnapshotList.stream()
+                .filter(parameterMap -> !currentOptionalPathNameList.contains(parameterMap.get("name")))
+                .collect(Collectors.toList());
+        swaggerHttpMethodMap.put(parametersKey, filteredParameterMapList); // overwrite
+        return swaggerHttpMethodMap;
     }
 
     // -----------------------------------------------------
