@@ -16,16 +16,17 @@
 package org.lastaflute.meta.agent;
 
 import org.dbflute.optional.OptionalThing;
-import org.lastaflute.meta.agent.maven.MavenVersionFinder;
+import org.lastaflute.meta.infra.maven.MavenVersionFinder;
 import org.lastaflute.web.response.HtmlResponse;
 import org.lastaflute.web.servlet.request.RequestManager;
 
 /**
+ * It means SwaggerUIAgent but no rename to keep auto-import compatibility.
  * @author p1us2er0
  * @author jflute
  * @since 0.2.3 (2017/04/20 Thursday)
  */
-public class SwaggerAgent {
+public class SwaggerAgent { // used by application's SwaggerAction
 
     protected final RequestManager requestManager;
 

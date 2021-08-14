@@ -18,7 +18,7 @@ package org.lastaflute.meta.exception;
 /**
  * @author p1us2er0
  */
-public class SwaggerDefaultValueParseFailureException extends LastaDocBaseException {
+public class SwaggerDefaultValueParseFailureException extends LastaMetaBaseException {
 
     private static final long serialVersionUID = 1L;
 

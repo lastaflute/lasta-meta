@@ -15,26 +15,22 @@
  */
 package org.lastaflute.meta;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
-import org.lastaflute.core.json.JsonMappingOption;
+import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.meta.generator.ActionDocumentGenerator;
-import org.lastaflute.meta.generator.DocumentGeneratorFactory;
-import org.lastaflute.meta.generator.JobDocumentGenerator;
-import org.lastaflute.meta.meta.ActionDocMeta;
-import org.lastaflute.meta.reflector.SourceParserReflector;
-import org.lastaflute.meta.reflector.SourceParserReflectorFactory;
+import org.lastaflute.meta.document.ActionDocumentAnalyzer;
+import org.lastaflute.meta.document.DocumentAnalyzerFactory;
+import org.lastaflute.meta.document.JobDocumentAnalyzer;
+import org.lastaflute.meta.document.docmeta.ActionDocMeta;
+import org.lastaflute.meta.document.outputmeta.OutputMetaSerializer;
+import org.lastaflute.meta.infra.json.MetauseJsonEngineProvider;
+import org.lastaflute.meta.sourceparser.SourceParserReflector;
+import org.lastaflute.meta.sourceparser.SourceParserReflectorFactory;
 
 // package of this class should be under lastaflute but no fix for compatible
 /**
@@ -68,19 +64,36 @@ public class DocumentGenerator {
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
 
+    protected final MetauseJsonEngineProvider metauseJsonEngineProvider = newMetauseJsonEngineProvider();
+
+    protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
+        return new MetauseJsonEngineProvider();
+    }
+
+    protected final OutputMetaSerializer outputMetaSerializer = newOutputMetaSerializer();
+
+    protected OutputMetaSerializer newOutputMetaSerializer() {
+        return new OutputMetaSerializer();
+    }
+
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
     public DocumentGenerator() {
-        this.srcDirList = DfCollectionUtil.newArrayList();
-        this.srcDirList.add(SRC_DIR);
-        final String commonDir =
-                "../" + new File(".").getAbsoluteFile().getParentFile().getName().replaceAll("-.*", "-common") + "/" + SRC_DIR;
-        if (new File(commonDir).exists()) {
-            this.srcDirList.add(commonDir);
-        }
+        this.srcDirList = prepareDefaultSrcDirList();
         this.depth = DEPTH;
         this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
+    }
+
+    protected List<String> prepareDefaultSrcDirList() {
+        final List<String> srcDirList = DfCollectionUtil.newArrayList();
+        srcDirList.add(SRC_DIR);
+        final String projectDirName = new File(".").getAbsoluteFile().getParentFile().getName();
+        final String commonDir = "../" + projectDirName.replaceAll("-.*", "-common") + "/" + SRC_DIR;
+        if (new File(commonDir).exists()) {
+            srcDirList.add(commonDir);
+        }
+        return srcDirList;
     }
 
     public DocumentGenerator(List<String> srcDirList) {
@@ -93,8 +106,8 @@ public class DocumentGenerator {
         return new SourceParserReflectorFactory();
     }
 
-    protected DocumentGeneratorFactory createDocumentGeneratorFactory() {
-        return new DocumentGeneratorFactory();
+    protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
+        return new DocumentAnalyzerFactory();
     }
 
     // ===================================================================================
@@ -117,59 +130,40 @@ public class DocumentGenerator {
     //                                                                         Action Meta
     //                                                                         ===========
     public void saveLastaDocMeta() {
-        final Map<String, Object> lastaDocDetailMap = generateLastaDocDetailMap();
-        final String json = createJsonEngine().toJson(lastaDocDetailMap);
-
-        final Path path = Paths.get(getLastaDocDir(), "analyzed-lastadoc.json");
-        final Path parentPath = path.getParent();
-        if (!Files.exists(parentPath)) {
-            try {
-                Files.createDirectories(parentPath);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to create directory: " + parentPath, e);
-            }
-        }
-
-        try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
-            bw.write(json);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to write the json to the file: " + path, e);
-        }
+        final Map<String, Object> lastaMetaDetailMap = generateLastaDetailMap();
+        final String json = createJsonEngine().toJson(lastaMetaDetailMap);
+        outputMetaSerializer.saveLastaDocMeta(json);
     }
 
-    protected Map<String, Object> generateLastaDocDetailMap() {
-        final List<ActionDocMeta> actionDocMetaList = createActionDocumentGenerator().generateActionDocMetaList();
-        final Map<String, Object> lastaDocDetailMap = DfCollectionUtil.newLinkedHashMap();
-        lastaDocDetailMap.put("actionDocMetaList", actionDocMetaList);
-        createJobDocumentGenerator().ifPresent(jobDocumentGenerator -> {
-            lastaDocDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
+    protected Map<String, Object> generateLastaDetailMap() {
+        final List<ActionDocMeta> actionDocMetaList = createActionDocumentAnalyzer().analyzeAction();
+        final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
+        lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
+        createJobDocumentAnalyzer().ifPresent(jobDocumentGenerator -> {
+            lastaMetaDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
         });
-        return lastaDocDetailMap;
+        return lastaMetaDetailMap;
     }
 
-    protected ActionDocumentGenerator createActionDocumentGenerator() {
-        return createDocumentGeneratorFactory().createActionDocumentGenerator(srcDirList, depth, sourceParserReflector);
+    public ActionDocumentAnalyzer createActionDocumentAnalyzer() { // also called by e.g. swagger
+        return createDocumentGeneratorFactory().createActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
-    protected OptionalThing<JobDocumentGenerator> createJobDocumentGenerator() {
+    protected OptionalThing<JobDocumentAnalyzer> createJobDocumentAnalyzer() {
         if (jobDocSuppressed) {
             return OptionalThing.empty();
         }
-        return createDocumentGeneratorFactory().createJobDocumentGenerator(srcDirList, depth, sourceParserReflector);
+        return createDocumentGeneratorFactory().createJobDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
     // ===================================================================================
     //                                                                        Small Helper
     //                                                                        ============
-    protected String getLastaDocDir() {
-        return createDocumentGeneratorFactory().getLastaDocDir();
+    protected RealJsonEngine createJsonEngine() {
+        return metauseJsonEngineProvider.createJsonEngine();
     }
 
-    public RealJsonEngine createJsonEngine() {
-            return createDocumentGeneratorFactory().createJsonEngine();
-    }
-
-    public OptionalThing<JsonMappingOption> getApplicationJsonMappingOption() {
-        return createDocumentGeneratorFactory().getApplicationJsonMappingOption();
+    protected JsonControlMeta getAppJsonControlMeta() {
+        return metauseJsonEngineProvider.getAppJsonControlMeta();
     }
 }

@@ -23,7 +23,6 @@ import java.util.Map;
 
 import org.dbflute.utflute.core.PlainTestCase;
 import org.dbflute.util.DfReflectionUtil;
-import org.lastaflute.meta.util.LaDocReflectionUtil;
 import org.lastaflute.web.response.JsonResponse;
 
 /**
