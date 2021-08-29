@@ -26,7 +26,7 @@ import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
-import org.lastaflute.di.helper.misc.ParameterizedRef;
+import org.lastaflute.di.util.LdiSerializeUtil;
 import org.lastaflute.meta.SwaggerOption;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
@@ -400,9 +400,6 @@ public class SwaggerSpecPathsSetupper {
         final String actionUrl = actionDocMeta.getUrl(); // e.g. /product/list/{pageNumber}
         final String httpMethod = httpMethodHandler.extractHttpMethod(actionDocMeta);
 
-        // to make snapshot of swaggerHttpMethodMap for optional variation
-        final String json = swaggeruseJsonEngine.toJson(pathsMap.get(actionUrl).get(httpMethod));
-
         // loop: e.g. sea, land, piari, if /maihama/{sea}/{land}/{piari}
         IntStream.range(0, optionalPathNameList.size()).forEach(index -> {
             // [sea, land, piari] if current {sea}
@@ -423,7 +420,10 @@ public class SwaggerSpecPathsSetupper {
             }
 
             // prepare swaggerHttpMethodMap for current optional path
-            final Map<String, Object> swaggerHttpMethodMap = prepareOptionalSwaggerHttpMethodMap(json, currentOptionalPathNameList);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> swaggerHttpMethodMap =
+                    (Map<String, Object>) LdiSerializeUtil.serialize(pathsMap.get(actionUrl).get(httpMethod));
+            prepareOptionalSwaggerHttpMethodMap(swaggerHttpMethodMap, currentOptionalPathNameList);
 
             // register HTTP Method definition for current optional path
             pathsMap.get(currentUrl).put(httpMethod, swaggerHttpMethodMap);
@@ -432,17 +432,7 @@ public class SwaggerSpecPathsSetupper {
         pathsMap.put(actionUrl, swaggerUrlMap);
     }
 
-    protected Map<String, Object> prepareOptionalSwaggerHttpMethodMap(String json, List<String> currentOptionalPathNameList) {
-        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-        // #for_now jflute giving up "10.0 problem" for e.g. minLength, maxLength (2021/08/08)
-        //  on JSON :: minLength: 10
-        //  on Map  :: minLength: 10.0
-        // Gson specification: number is treated as decial when to Map from JSON
-        // however optional parameter is rare case if JSON API, so no care for now
-        // _/_/_/_/_/_/_/_/_/_/
-        final Map<String, Object> swaggerHttpMethodMap =
-                swaggeruseJsonEngine.fromJsonParameteried(json, new ParameterizedRef<Map<String, Object>>() {
-                }.getType()); // must be mutable
+    protected void prepareOptionalSwaggerHttpMethodMap(Map<String, Object> swaggerHttpMethodMap, List<String> currentOptionalPathNameList) {
         final String parametersKey = "parameters";
         @SuppressWarnings("unchecked")
         final List<Map<String, Object>> parametersSnapshotList = (List<Map<String, Object>>) swaggerHttpMethodMap.get(parametersKey);
@@ -450,7 +440,6 @@ public class SwaggerSpecPathsSetupper {
                 .filter(parameterMap -> !currentOptionalPathNameList.contains(parameterMap.get("name")))
                 .collect(Collectors.toList());
         swaggerHttpMethodMap.put(parametersKey, filteredParameterMapList); // overwrite
-        return swaggerHttpMethodMap;
     }
 
     // -----------------------------------------------------
