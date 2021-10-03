@@ -8,7 +8,7 @@ The engine library to handle metadata of LastaFlute for e.g. LastaDoc, Swagger
 <dependency>
     <groupId>org.lastaflute.meta</groupId>
     <artifactId>lasta-meta</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.2</version>
 </dependency>
 ```
 
