@@ -80,7 +80,11 @@ public class SwaggerSpecDataTypeHandler {
         typeMap.put(LocalDateTime.class, new SwaggerSpecDataType("string", "date-time", (typeDocMeta, value) -> {
             return value == null ? getLocalDateTimeFormatter(typeDocMeta).format(getDefaultLocalDateTime()) : value;
         }));
-        typeMap.put(LocalTime.class, new SwaggerSpecDataType("string", "time", (typeDocMeta, value) -> {
+        // #thinking jflute format "time" does not exist in OpenAPI specification (2022/01/13)
+        // https://swagger.io/specification/#data-types
+        //final String localTimeFormat = "time";
+        final String localTimeFormat = null;
+        typeMap.put(LocalTime.class, new SwaggerSpecDataType("string", localTimeFormat, (typeDocMeta, value) -> {
             return value == null ? getLocalTimeFormatter(typeDocMeta).format(getDefaultLocalTime()) : value;
         }));
         typeMap.put(MultipartFormFile.class, new SwaggerSpecDataType("file", null, (typeDocMeta, value) -> value));
