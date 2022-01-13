@@ -80,7 +80,7 @@ public class SwaggerSpecDataTypeHandler {
         typeMap.put(LocalDateTime.class, new SwaggerSpecDataType("string", "date-time", (typeDocMeta, value) -> {
             return value == null ? getLocalDateTimeFormatter(typeDocMeta).format(getDefaultLocalDateTime()) : value;
         }));
-        typeMap.put(LocalTime.class, new SwaggerSpecDataType("string", null, (typeDocMeta, value) -> {
+        typeMap.put(LocalTime.class, new SwaggerSpecDataType("string", "time", (typeDocMeta, value) -> {
             return value == null ? getLocalTimeFormatter(typeDocMeta).format(getDefaultLocalTime()) : value;
         }));
         typeMap.put(MultipartFormFile.class, new SwaggerSpecDataType("file", null, (typeDocMeta, value) -> value));
