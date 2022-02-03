@@ -71,9 +71,9 @@ public class SwaggerSpecFormSetupper {
         setupConsumesIfFormData(httpMethodContentMap, parameterMapList);
     }
 
-    // -----------------------------------------------------
-    //                                        Form Parameter
-    //                                        --------------
+    // ===================================================================================
+    //                                                                      Form Parameter
+    //                                                                      ==============
     protected Map<String, Object> setupFormParameter(String httpMethod, TypeDocMeta typeDocMeta) {
         //       {
         //         "name": "account",
@@ -91,6 +91,7 @@ public class SwaggerSpecFormSetupper {
         adjustIn(httpMethod, parameterMap);
         adjustExample(httpMethod, parameterMap);
         adjustRequired(httpMethod, parameterMap, typeDocMeta);
+        adjustCollectionFormat(httpMethod, parameterMap);
 
         return parameterMap;
     }
@@ -145,9 +146,27 @@ public class SwaggerSpecFormSetupper {
         }));
     }
 
-    // -----------------------------------------------------
-    //                                              Consumes
-    //                                              --------
+    protected void adjustCollectionFormat(String httpMethod, Map<String, Object> parameterMap) {
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // as Array and Multi-Value Parameters specification of Swagger-2.0
+        // https://swagger.io/docs/specification/2-0/describing-parameters/
+        // collectionFormat default is csv, which is unmatched with LastaFlute form mapping logic
+        // so explicitly set it up here by jflute (2022/02/03)
+        // _/_/_/_/_/_/_/_/_/_/
+        if (needsCollectionFormatMulti(parameterMap)) {
+            parameterMap.put("collectionFormat", "multi");
+        }
+    }
+
+    protected boolean needsCollectionFormatMulti(Map<String, Object> parameterMap) {
+        // "multi" is only supported for the following inputs as Swagger specification
+        // (and also that is enough for LastaFlute form mapping)
+        return isParameterInputQuery(parameterMap) || isParameterInputFormData(parameterMap);
+    }
+
+    // ===================================================================================
+    //                                                                            Consumes
+    //                                                                            ========
     protected void setupConsumesIfFormData(Map<String, Object> httpMethodContentMap, List<Map<String, Object>> parameterMapList) {
         if (hasFormDataInput(parameterMapList)) {
             if (hasFileTypeParameter(parameterMapList)) {
@@ -159,11 +178,11 @@ public class SwaggerSpecFormSetupper {
     }
 
     protected boolean hasFormDataInput(List<Map<String, Object>> parameterMapList) {
-        return parameterMapList.stream().anyMatch(parameterMap -> "formData".equals(parameterMap.get("in")));
+        return parameterMapList.stream().anyMatch(parameterMap -> isParameterInputFormData(parameterMap));
     }
 
     protected boolean hasFileTypeParameter(List<Map<String, Object>> parameterMapList) {
-        return parameterMapList.stream().anyMatch(parameterMap -> "file".equals(parameterMap.get("type")));
+        return parameterMapList.stream().anyMatch(parameterMap -> isParameterTypeFile(parameterMap));
     }
 
     protected void adjustConsumesAsMultipart(Map<String, Object> httpMethodContentMap) {
@@ -172,5 +191,20 @@ public class SwaggerSpecFormSetupper {
 
     protected void adjustConsumesAsFormUrlencoded(Map<String, Object> httpMethodContentMap) {
         httpMethodContentMap.put("consumes", Arrays.asList("application/x-www-form-urlencoded"));
+    }
+
+    // ===================================================================================
+    //                                                                        Assist Logic
+    //                                                                        ============
+    protected boolean isParameterInputFormData(Map<String, Object> parameterMap) {
+        return "formData".equals(parameterMap.get("in"));
+    }
+
+    protected boolean isParameterInputQuery(Map<String, Object> parameterMap) {
+        return "query".equals(parameterMap.get("in"));
+    }
+
+    protected boolean isParameterTypeFile(Map<String, Object> parameterMap) {
+        return "file".equals(parameterMap.get("type"));
     }
 }
