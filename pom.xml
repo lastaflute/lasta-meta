@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.lastaflute.meta</groupId>
 	<artifactId>lasta-meta</artifactId>
-	<version>0.5.2</version>
+	<version>0.5.3</version>
 	<packaging>jar</packaging>
 
 	<name>lasta-meta</name>
@@ -19,7 +19,7 @@
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.23.0</javaparser.version>
 		<openapidiff.version>2.0.0-beta.10</openapidiff.version>
-		<utflute.version>0.9.3</utflute.version>
+		<utflute.version>0.9.4</utflute.version>
 	</properties>
 
 	<licenses>
