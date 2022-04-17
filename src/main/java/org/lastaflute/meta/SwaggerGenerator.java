@@ -182,7 +182,13 @@ public class SwaggerGenerator {
     //                                         ActionDocMeta
     //                                         -------------
     protected List<ActionDocMeta> generateActionDocMetaList() {
-        return new DocumentGenerator().createActionDocumentAnalyzer().analyzeAction();
+        final DocumentGenerator documentGenerator = newDocumentGenerator();
+        customizeActionDocumentGenerator(documentGenerator);
+        return documentGenerator.createActionDocumentAnalyzer().analyzeAction();
+    }
+
+    protected void customizeActionDocumentGenerator(DocumentGenerator documentGenerator) { // you can override
+        // do nothing as default
     }
 
     protected List<ActionDocMeta> filterActionDocMetaList(List<ActionDocMeta> actionDocMetaList) {
@@ -205,6 +211,13 @@ public class SwaggerGenerator {
     protected String extractActionJson(LaActionSwaggerable swaggerable) {
         final JsonResponse<Map<String, Object>> jsonResponse = swaggerable.json();
         return createJsonEngine().toJson(jsonResponse.getJsonResult());
+    }
+
+    // ===================================================================================
+    //                                                                  Document Generator
+    //                                                                  ==================
+    protected DocumentGenerator newDocumentGenerator() {
+        return new DocumentGenerator();
     }
 
     // ===================================================================================
