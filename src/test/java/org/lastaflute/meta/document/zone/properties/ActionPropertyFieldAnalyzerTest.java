@@ -34,7 +34,7 @@ public class ActionPropertyFieldAnalyzerTest extends PlainTestCase {
 
         assertFalse(analyzer.isTargetSuffixResolvedClass(String.class));
         assertFalse(analyzer.isTargetSuffixResolvedClass(MockCDef.MemberStatus.class));
-        assertFalse(analyzer.isTargetSuffixResolvedClass(MockCDef.WhiteConfusingFormatBodying.class));
+        assertFalse(analyzer.isTargetSuffixResolvedClass(MockCDef.PaymentMethod.class));
     }
 
     private ActionPropertyFieldAnalyzer createAnalyzerAsNonRecursive() {
