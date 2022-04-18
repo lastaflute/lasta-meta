@@ -41,7 +41,11 @@ public class SwaggerSpecDataType {
             } catch (Exception e) {
                 final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
                 br.addNotice("Failed to parse the swagger default value in javadoc's comment.");
-                br.addItem("Type");
+                br.addItem("typeDocMeta");
+                br.addElement(typeDocMeta);
+                br.addItem("Property Name");
+                br.addElement(typeDocMeta.getName());
+                br.addItem("Property Type");
                 br.addElement(typeDocMeta.getType());
                 br.addItem("Javadoc");
                 br.addElement(typeDocMeta.getComment());
