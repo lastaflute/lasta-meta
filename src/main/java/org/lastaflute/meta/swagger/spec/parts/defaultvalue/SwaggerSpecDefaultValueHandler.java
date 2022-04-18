@@ -24,6 +24,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.dbflute.optional.OptionalThing;
+import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataType;
@@ -70,6 +71,10 @@ public class SwaggerSpecDefaultValueHandler {
             //  /** Sea List e.g. [dockside, hangar] */ => ["dockside", "hangar"]
             //  /** Sea List e.g. ["dockside", "hangar"] */ => ["dockside", "hangar"]
             return doDeriveListDefalutValue(typeDocMeta, swaggerDataTypeMap);
+        } else if (isNonNestMap(typeDocMeta)) { // e.g. Map<String, String>
+            // e.g.
+            //  /** Sea Map e.g. {dockside:over, hangar:mystic] */ => {"dockside" = "over", "hangar" = "mystic"}
+            return doDeriveMapDefalutValue(typeDocMeta, swaggerDataTypeMap);
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) { // e.g. CDef
             // e.g.
             //  /** Sea Status e.g. FML */ => FML
@@ -117,6 +122,69 @@ public class SwaggerSpecDefaultValueHandler {
             }).collect(Collectors.toList()));
         }
         return OptionalThing.empty();
+    }
+
+    // -----------------------------------------------------
+    //                                                  Map
+    //                                                 -----
+    protected boolean isNonNestMap(TypeDocMeta typeDocMeta) {
+        return Map.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty();
+    }
+
+    protected OptionalThing<Object> doDeriveMapDefalutValue(TypeDocMeta typeDocMeta,
+            Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // contributed by U-NEXT, thanks.
+        // for now, migrated as plain logic first by jflute (2022/04/18)
+        // _/_/_/_/_/_/_/_/_/_/
+
+        // java.util.Map<String, String> convert to [String, String]
+        final String[] keyValueArray = extractMapGenericTypeAsArray(typeDocMeta); // e.g. [String, String]
+        if (keyValueArray.length <= 1) { // non generic?
+            return OptionalThing.empty();
+        }
+        final String keyTypeName = keyValueArray[0].trim();
+        final String valueTypeName = keyValueArray[1].trim();
+        return OptionalThing.ofNullable(deriveMapDefaultValueByComment(typeDocMeta.getComment(), keyTypeName, valueTypeName), () -> {
+            throw new IllegalStateException("not found default value.");
+        });
+    }
+
+    protected String[] extractMapGenericTypeAsArray(TypeDocMeta typeDocMeta) {
+        // java.util.Map<String, String> convert to [String, String]
+        return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(typeDocMeta.getTypeName(), "<"), ">").split(",");
+    }
+
+    protected Object deriveMapDefaultValueByComment(String comment, String keyTypeName, String valueTypeName) {
+        if (DfStringUtil.is_Null_or_Empty(comment)) {
+            return null;
+        }
+        final String egMark = "e.g. {";
+        if (!comment.contains(egMark)) {
+            return null;
+        }
+        final String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, egMark), "}");
+        Map<Object, Object> map = DfCollectionUtil.newHashMap();
+        for (String keyValueEntry : defaultValue.split(",")) {
+            String[] entry = keyValueEntry.split(":");
+            Object key = entry[0];
+            Object value = entry[1];
+            if ("String".equals(keyTypeName)) {
+                key = egStringToJavaString(key.toString().trim());
+            }
+            if ("String".equals(valueTypeName)) {
+                value = egStringToJavaString(value.toString().trim());
+            }
+            map.put(key, value);
+        }
+        return map;
+    }
+
+    private String egStringToJavaString(String egString) {
+        if (egString.startsWith("\"") && egString.endsWith("\"")) {
+            return egString.substring(1, egString.length() - 1);
+        }
+        return egString;
     }
 
     // -----------------------------------------------------

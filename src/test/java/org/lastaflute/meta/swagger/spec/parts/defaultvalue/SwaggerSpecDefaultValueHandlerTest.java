@@ -147,9 +147,12 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
     //                                                                            Iterable
     //                                                                            ========
     public void test_deriveDefaultValue_iterable_basic() {
+        // basic
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [dockside, hangar]")).get());
         assertEquals(Arrays.asList("mystic"), handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [mystic]")).get());
+
+        // quoted
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"dockside\", \"hangar\"]")).get());
         assertEquals(Arrays.asList("mystic"), handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"mystic\"]")).get());
@@ -158,6 +161,12 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"dockside\",\"hangar\"]")).get());
         assertFalse(handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g.[\"dockside\", \"hangar\"]")).isPresent());
+
+        // rear space
+        assertEquals(Arrays.asList("dockside", "hangar"),
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [dockside, hangar] ")).get());
+        assertEquals(Arrays.asList("dockside", "hangar"),
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [dockside, hangar] rear comment")).get());
 
         // value space
         assertEquals(Arrays.asList("dock side", "han gar"),
@@ -182,8 +191,12 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(null, "Sea List e.g. [\"dockside\", \"hangar\"]")).get());
 
-        // various
+        // broken
         assertFalse(handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. \"dockside\", \"hangar\"")).isPresent());
+        assertEquals(Arrays.asList("dock[side", "hangar"),
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [dock[side, hangar]")).get());
+        assertEquals(Arrays.asList("dock"),
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [dock]side, hangar]")).get());
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"dockside\", \"hangar\"")).get());
         assertFalse(handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. \"dockside\", \"hangar\"]")).isPresent());
@@ -199,13 +212,81 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
     // ===================================================================================
     //                                                                                Map
     //                                                                               =====
-    public void test_deriveDefaultValue_map_basic() { // unsupported until 0.5.3
-        String basicComment = "Sea Map e.g. {\"dockside\" = \"over\", \"hangar\" = \"mystic\"}";
-        assertFalse(handler().deriveDefaultValue(mapMeta(basicComment)).isPresent());
+    public void test_deriveDefaultValue_map_basic() { // supported since 0.5.4 (unsupported until 0.5.3)
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // test contributed code
+        // that was migrated as plain logic first by jflute (2022/04/18)
+        // problem candidates:
+        //  o not trimmed
+        //  o not unquoted
+        //  o many ArrayIndexOutOfBoundsException cases
+        // _/_/_/_/_/_/_/_/_/_/
+
+        // basic
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic}")).get());
+        assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over}")).get());
+
+        // quoted, quotation remained, *problem?
+        assertEquals(newHashMap("\"dockside\"", "\"over\"", "\"hangar\"", "\"mystic\""),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {\"dockside\":\"over\",\"hangar\":\"mystic\"}")).get());
+        assertEquals(newHashMap("\"dockside\"", "\"over\""),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {\"dockside\":\"over\"}")).get());
+
+        // mark space
+        assertFalse(handler().deriveDefaultValue(mapMeta("e.g.{dockside:over}")).isPresent()); // same as others
+
+        // rear space
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // rear space
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic} ")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // rear space
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic} rear comment")).get());
+
+        // value space
+        assertEquals(newHashMap("dockside ", " over", " hangar ", " mystic"), // non trimmed, *problem?
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside : over, hangar : mystic}")).get());
+        assertEquals(newHashMap("dock side", "over the waves", "han gar", "mys tic"),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dock side:over the waves,han gar:mys tic}")).get());
+
+        // no description, different from others, however no problem
+        assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("e.g. {dockside:over}")).get());
+
+        // none
+        assertFalse(handler().deriveDefaultValue(mapMeta("Sea Map")).isPresent());
+        assertFalse(handler().deriveDefaultValue(mapMeta("Sea Map e.g.")).isPresent());
+        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
+            handler().deriveDefaultValue(mapMeta("Sea Map e.g. {}"));
+        });
+        assertFalse(handler().deriveDefaultValue(mapMeta("e.g. dockside:over")).isPresent());
+        assertFalse(handler().deriveDefaultValue(mapMeta("e.g. dockside:over}")).isPresent());
+        assertFalse(handler().deriveDefaultValue(mapMeta("e.g. [dockside:over]")).isPresent());
+
+        // broken
+        assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over")).get());
+        assertEquals(newHashMap("dockside", "over the waves"), // different from others, however no problem
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over the waves")).get());
+        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
+            handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside=over"));
+        });
+        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
+            handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside=over, hangar:mystic}"));
+        });
+        assertEquals(newHashMap("dockside", "over"), // different from others, however no problem
+                handler().deriveDefaultValue(mapMeta("Sea Mape.g. {dockside:over")).get());
+
+        // integer
+        assertEquals(newHashMap("dockside", "1", "hangar", "2"),
+                handler().deriveDefaultValue(mapMetaAsInteger("Sea Map e.g. {dockside:1,hangar:2}")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // unrelated to integer type, no problem?
+                handler().deriveDefaultValue(mapMetaAsInteger("Sea Map e.g. {dockside:over,hangar:mystic}")).get());
     }
 
     private TypeDocMeta mapMeta(String comment) {
-        return createMeta("seaMap", Map.class, null, comment);
+        return createMetaForMap("seaMap", String.class, String.class, comment);
+    }
+
+    private TypeDocMeta mapMetaAsInteger(String comment) {
+        return createMetaForMap("seaMap", String.class, Integer.class, comment);
     }
 
     // ===================================================================================
@@ -256,6 +337,16 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         typeDocMeta.setName(name);
         typeDocMeta.setType(type);
         typeDocMeta.setGenericType(genericType);
+        typeDocMeta.setComment(comment);
+        return typeDocMeta;
+    }
+
+    private TypeDocMeta createMetaForMap(String name, Class<?> keyType, Class<?> valueType, String comment) {
+        // only used in the handler (minimum set)
+        TypeDocMeta typeDocMeta = new TypeDocMeta();
+        typeDocMeta.setName(name);
+        typeDocMeta.setType(Map.class);
+        typeDocMeta.setTypeName("java.util.Map<" + keyType.getName() + ", " + valueType.getName() + ">");
         typeDocMeta.setComment(comment);
         return typeDocMeta;
     }
