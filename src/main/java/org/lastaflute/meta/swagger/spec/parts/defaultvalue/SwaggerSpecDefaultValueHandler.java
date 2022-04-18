@@ -54,57 +54,107 @@ public class SwaggerSpecDefaultValueHandler {
     // ===================================================================================
     //                                                                       Default Value
     //                                                                       =============
+    /**
+     * @param typeDocMeta The meta of property on bean class. (NotNull)
+     * @return The optional default value derived from comment. (NotNull, EmptyAllowed: e.g. not found)
+     */
     public OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
         final Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap = dataTypeHandler.createSwaggerDataTypeMap();
-        if (swaggerDataTypeMap.containsKey(typeDocMeta.getType())) {
-            SwaggerSpecDataType swaggerType = swaggerDataTypeMap.get(typeDocMeta.getType());
-            Object defaultValue =
-                    swaggerType.defaultValueFunction.apply(typeDocMeta, deriveDefaultValueByComment(typeDocMeta.getComment()));
-            if (defaultValue != null) {
-                return OptionalThing.of(defaultValue);
-            }
-        } else if (Iterable.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
-            Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
-            if (!(defaultValue instanceof List)) {
-                return OptionalThing.empty();
-            }
-            @SuppressWarnings("unchecked")
-            List<Object> defaultValueList = (List<Object>) defaultValue;
-            Class<?> genericType = typeDocMeta.getGenericType();
-            if (genericType == null) {
-                genericType = String.class;
-            }
-            SwaggerSpecDataType swaggerType = swaggerDataTypeMap.get(genericType);
-            if (swaggerType != null) {
-                return OptionalThing.of(defaultValueList.stream().map(value -> {
-                    return swaggerType.defaultValueFunction.apply(typeDocMeta, value);
-                }).collect(Collectors.toList()));
-            }
-        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
-            final Object defaultValue = deriveDefaultValueByComment(typeDocMeta.getComment());
-            if (defaultValue != null) {
-                return OptionalThing.of(defaultValue);
-            } else { // use first Enum element as default
-                @SuppressWarnings("unchecked")
-                final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
-                final List<Map<String, String>> enumMapList = enumHandler.buildEnumMapList(enumClass);
-                final Optional<Object> firstEnumElement = enumMapList.stream().map(e -> (Object) e.get("code")).findFirst();
-                return OptionalThing.migratedFrom(firstEnumElement, () -> {
-                    throw new IllegalStateException("not found enum value.");
-                });
-            }
+        if (swaggerDataTypeMap.containsKey(typeDocMeta.getType())) { // scalar e.g. String, Integer, LocalDate
+            // e.g.
+            //  /** Sea Name e.g. SeaOfDreams */ => SeaOfDreams
+            //  /** Sea Name e.g. \"Sea of Dreams\"*/ => Sea of Dreams
+            return doDeriveScalarDefalutValue(typeDocMeta, swaggerDataTypeMap);
+        } else if (isNonNestIterable(typeDocMeta)) { // e.g. List<String>, ImmutableList<Integer> (not List<SeaResult>)
+            // e.g.
+            //  /** Sea List e.g. [dockside, hangar] */ => ["dockside", "hangar"]
+            //  /** Sea List e.g. ["dockside", "hangar"] */ => ["dockside", "hangar"]
+            return doDeriveListDefalutValue(typeDocMeta, swaggerDataTypeMap);
+        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) { // e.g. CDef
+            // e.g.
+            //  /** Sea Status e.g. FML */ => FML
+            return doDeriveEnumDefaultValue(typeDocMeta, swaggerDataTypeMap);
         }
         return OptionalThing.empty();
     }
 
-    protected Object deriveDefaultValueByComment(String comment) {
+    // -----------------------------------------------------
+    //                                                Scalar
+    //                                                ------
+    protected OptionalThing<Object> doDeriveScalarDefalutValue(TypeDocMeta typeDocMeta,
+            Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
+        final SwaggerSpecDataType swaggerType = swaggerDataTypeMap.get(typeDocMeta.getType());
+        final Object extracted = extractDefaultValueFromComment(typeDocMeta.getComment());
+        final Object defaultValue = swaggerType.defaultValueFunction.apply(typeDocMeta, extracted);
+        return OptionalThing.ofNullable(defaultValue, () -> {
+            throw new IllegalStateException("Not found the default value: " + typeDocMeta);
+        });
+    }
+
+    // -----------------------------------------------------
+    //                                              Iterable
+    //                                              --------
+    protected boolean isNonNestIterable(TypeDocMeta typeDocMeta) {
+        return Iterable.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty();
+    }
+
+    protected OptionalThing<Object> doDeriveListDefalutValue(TypeDocMeta typeDocMeta,
+            Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
+        final Object defaultValue = extractDefaultValueFromComment(typeDocMeta.getComment());
+        if (!(defaultValue instanceof List)) {
+            return OptionalThing.empty();
+        }
+        @SuppressWarnings("unchecked")
+        final List<Object> defaultValueList = (List<Object>) defaultValue;
+        Class<?> genericType = typeDocMeta.getGenericType();
+        if (genericType == null) {
+            genericType = String.class;
+        }
+        final SwaggerSpecDataType swaggerType = swaggerDataTypeMap.get(genericType);
+        if (swaggerType != null) {
+            return OptionalThing.of(defaultValueList.stream().map(value -> {
+                return swaggerType.defaultValueFunction.apply(typeDocMeta, value);
+            }).collect(Collectors.toList()));
+        }
+        return OptionalThing.empty();
+    }
+
+    // -----------------------------------------------------
+    //                                                 Enum
+    //                                                ------
+    protected OptionalThing<Object> doDeriveEnumDefaultValue(TypeDocMeta typeDocMeta,
+            Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
+        final Object defaultValue = extractDefaultValueFromComment(typeDocMeta.getComment());
+        if (defaultValue != null) {
+            return OptionalThing.of(defaultValue);
+        }
+        // use first Enum element as default
+        @SuppressWarnings("unchecked")
+        final Class<? extends Enum<?>> enumClass = (Class<? extends Enum<?>>) typeDocMeta.getType();
+        final List<Map<String, String>> enumMapList = enumHandler.buildEnumMapList(enumClass);
+        final Optional<Object> firstEnumElement = enumMapList.stream().map(e -> (Object) e.get("code")).findFirst();
+        return OptionalThing.migratedFrom(firstEnumElement, () -> {
+            throw new IllegalStateException("not found enum value.");
+        });
+    }
+
+    // ===================================================================================
+    //                                                                   Extract egDefault
+    //                                                                   =================
+    /**
+     * Extract default value from comment plainly in spite of property type. 
+     * @param comment The plain comment on property JavaDoc, may contain default value. (NullAllowed)
+     * @return The extracted default value from the comment simply. (NullAllowed: null comment or "null")
+     */
+    protected Object extractDefaultValueFromComment(String comment) {
         if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-            String commentWithoutLine = comment.replaceAll("\r?\n", " ");
+            final String commentWithoutLine = comment.replaceAll("\r?\n", " ");
             if (commentWithoutLine.contains(" e.g. \"")) {
                 return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. \""), "\"");
             }
             if (commentWithoutLine.contains(" e.g. [")) {
-                String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. ["), "]");
+                final String defaultValue =
+                        DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. ["), "]");
                 return Arrays.stream(defaultValue.split(", *")).map(value -> {
                     if (value.startsWith("\"") && value.endsWith("\"")) {
                         return value.substring(1, value.length() - 1);
@@ -112,10 +162,10 @@ public class SwaggerSpecDefaultValueHandler {
                     return "null".equals(value) ? null : value;
                 }).collect(Collectors.toList());
             }
-            Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
-            Matcher matcher = pattern.matcher(commentWithoutLine);
+            final Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
+            final Matcher matcher = pattern.matcher(commentWithoutLine);
             if (matcher.find()) {
-                String value = matcher.group(1);
+                final String value = matcher.group(1);
                 return "null".equals(value) ? null : value;
             }
         }
