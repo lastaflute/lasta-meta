@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
@@ -30,6 +31,7 @@ import org.lastaflute.di.util.LdiSerializeUtil;
 import org.lastaflute.meta.SwaggerOption;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.exception.SwaggerPathSetupFailureException;
 import org.lastaflute.meta.swagger.spec.parts.annotation.SwaggerSpecAnnotationHandler;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataTypeHandler;
 import org.lastaflute.meta.swagger.spec.parts.defaultvalue.SwaggerSpecDefaultValueHandler;
@@ -246,8 +248,28 @@ public class SwaggerSpecPathsSetupper {
     public void setupSwaggerPathsMap(List<ActionDocMeta> actionDocMetaList) { // top-level tags
         // output this process is registration of mutable attributes
         actionDocMetaList.stream().forEach(actionDocMeta -> {
-            doSetupSwaggerPathsMap(actionDocMeta);
+            try {
+                doSetupSwaggerPathsMap(actionDocMeta);
+            } catch (RuntimeException e) {
+                final String msg = buildParseFailureMessage(actionDocMeta);
+                throw new SwaggerPathSetupFailureException(msg, e);
+            }
         });
+    }
+
+    protected String buildParseFailureMessage(ActionDocMeta actionDocMeta) {
+        final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+        br.addNotice("Failed to set up swagger path for the action.");
+        br.addItem("Advice");
+        br.addElement("Make sure your Action definition.");
+        br.addElement("And look at the next exception messages.");
+        br.addItem("actionDocMeta");
+        br.addElement(actionDocMeta);
+        br.addItem("Action Class");
+        br.addElement(actionDocMeta.getActionExecute().getActionType());
+        br.addItem("Execute Method");
+        br.addElement(actionDocMeta.getActionExecute().toSimpleMethodExp());
+        return br.buildExceptionMessage();
     }
 
     protected void doSetupSwaggerPathsMap(ActionDocMeta actionDocMeta) {

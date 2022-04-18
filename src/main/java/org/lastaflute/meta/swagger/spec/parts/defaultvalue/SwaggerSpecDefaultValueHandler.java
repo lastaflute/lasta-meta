@@ -23,10 +23,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
+import org.lastaflute.meta.exception.SwaggerDefaultValueTypeConversionFailureException;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataType;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataTypeHandler;
 import org.lastaflute.meta.swagger.spec.parts.enumtype.SwaggerSpecEnumHandler;
@@ -60,27 +63,79 @@ public class SwaggerSpecDefaultValueHandler {
      * @return The optional default value derived from comment. (NotNull, EmptyAllowed: e.g. not found)
      */
     public OptionalThing<Object> deriveDefaultValue(TypeDocMeta typeDocMeta) {
-        final Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap = dataTypeHandler.createSwaggerDataTypeMap();
-        if (swaggerDataTypeMap.containsKey(typeDocMeta.getType())) { // scalar e.g. String, Integer, LocalDate
-            // e.g.
-            //  /** Sea Name e.g. SeaOfDreams */ => SeaOfDreams
-            //  /** Sea Name e.g. \"Sea of Dreams\"*/ => Sea of Dreams
-            return doDeriveScalarDefalutValue(typeDocMeta, swaggerDataTypeMap);
-        } else if (isNonNestIterable(typeDocMeta)) { // e.g. List<String>, ImmutableList<Integer> (not List<SeaResult>)
-            // e.g.
-            //  /** Sea List e.g. [dockside, hangar] */ => ["dockside", "hangar"]
-            //  /** Sea List e.g. ["dockside", "hangar"] */ => ["dockside", "hangar"]
-            return doDeriveListDefalutValue(typeDocMeta, swaggerDataTypeMap);
-        } else if (isNonNestMap(typeDocMeta)) { // e.g. Map<String, String>
-            // e.g.
-            //  /** Sea Map e.g. {dockside:over, hangar:mystic] */ => {"dockside" = "over", "hangar" = "mystic"}
-            return doDeriveMapDefalutValue(typeDocMeta, swaggerDataTypeMap);
-        } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) { // e.g. CDef
-            // e.g.
-            //  /** Sea Status e.g. FML */ => FML
-            return doDeriveEnumDefaultValue(typeDocMeta, swaggerDataTypeMap);
+        try {
+            final Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap = dataTypeHandler.createSwaggerDataTypeMap();
+            if (swaggerDataTypeMap.containsKey(typeDocMeta.getType())) { // scalar e.g. String, Integer, LocalDate
+                // e.g.
+                //  /** Sea Name e.g. SeaOfDreams */ => SeaOfDreams
+                //  /** Sea Name e.g. \"Sea of Dreams\"*/ => Sea of Dreams
+                return doDeriveScalarDefalutValue(typeDocMeta, swaggerDataTypeMap);
+            } else if (isNonNestIterable(typeDocMeta)) { // e.g. List<String>, ImmutableList<Integer> (not List<SeaResult>)
+                // e.g.
+                //  /** Sea List e.g. [dockside, hangar] */ => ["dockside", "hangar"]
+                //  /** Sea List e.g. ["dockside", "hangar"] */ => ["dockside", "hangar"]
+                return doDeriveListDefalutValue(typeDocMeta, swaggerDataTypeMap);
+            } else if (isNonNestMap(typeDocMeta)) { // e.g. Map<String, String>
+                // e.g.
+                //  /** Sea Map e.g. {dockside:over, hangar:mystic] */ => {"dockside" = "over", "hangar" = "mystic"}
+                return doDeriveMapDefalutValue(typeDocMeta, swaggerDataTypeMap);
+            } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) { // e.g. CDef
+                // e.g.
+                //  /** Sea Status e.g. FML */ => FML
+                return doDeriveEnumDefaultValue(typeDocMeta, swaggerDataTypeMap);
+            }
+            return OptionalThing.empty();
+        } catch (RuntimeException e) { // unexpected cases
+            if (e instanceof SwaggerDefaultValueTypeConversionFailureException) {
+                // the exception has enough information
+                // (avoid developer confusion by similar message)
+                throw e;
+            }
+            final String msg = buildParseFailureMessage(typeDocMeta);
+            throw new SwaggerDefaultValueParseFailureException(msg, e);
         }
-        return OptionalThing.empty();
+    }
+
+    protected String buildParseFailureMessage(TypeDocMeta typeDocMeta) {
+        final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+        br.addNotice("Failed to parse the \"e.g. default value\" in javadoc's comment.");
+        br.addItem("Advice");
+        br.addElement("Make sure your \"e.g. default value\" in javadoc's comment.");
+        br.addElement("Mismatched type? or Broken expression?");
+        br.addElement("For example:");
+        br.addElement("  (x): (mismatched type)");
+        br.addElement("    /** Sea Count e.g. over */ *Bad");
+        br.addElement("    public Integer seaCount;");
+        br.addElement("  (o): (correct type)");
+        br.addElement("    /** Sea Count e.g. 1 */ OK");
+        br.addElement("    public Integer seaCount;");
+        br.addElement("");
+        br.addElement("  (x): (broken expression)");
+        br.addElement("    /** Sea Date e.g. 2022@04-18 */ *Bad");
+        br.addElement("    public LocalDate seaDate;");
+        br.addElement("  (o): (correct expression)");
+        br.addElement("    /** Sea Date e.g. 2022-04-18 */ OK");
+        br.addElement("    public LocalDate seaDate;");
+        br.addElement("");
+        br.addElement("  (x): (broken expression)");
+        br.addElement("    /** Sea Map e.g. {dockside=over,hangar=mystic} */ *Bad");
+        br.addElement("    public Map<String, String> seaMap;");
+        br.addElement("  (o): (correct map)");
+        br.addElement("    /** Sea Map e.g. {dockside:over,hangar:mystic} */ OK");
+        br.addElement("    public Map<String, String> seaMap;");
+        br.addItem("typeDocMeta");
+        br.addElement(typeDocMeta);
+        br.addItem("Property Name");
+        br.addElement(typeDocMeta.getName());
+        br.addItem("Property Type");
+        br.addElement(typeDocMeta.getType());
+        final String simpleTypeName = typeDocMeta.getSimpleTypeName();
+        if (simpleTypeName != null) {
+            br.addElement("(type name: " + simpleTypeName + ")");
+        }
+        br.addItem("Javadoc");
+        br.addElement(typeDocMeta.getComment());
+        return br.buildExceptionMessage();
     }
 
     // -----------------------------------------------------
