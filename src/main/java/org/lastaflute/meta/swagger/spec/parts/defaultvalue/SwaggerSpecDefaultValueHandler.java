@@ -281,7 +281,17 @@ public class SwaggerSpecDefaultValueHandler {
     private String adjustMapKeyValueFormat(String exp) {
         // trim and unquote both double and single quatations
         // e.g. { "dockside" : "over", "hangar" : "mystic"} to {dockside:over,hangar:mystic}
-        return Srl.unquoteSingle(Srl.unquoteDouble(exp.trim()));
+        final String trimmed = exp.trim();
+        final String filtered;
+        if (Srl.isQuotedDouble(trimmed)) {
+            filtered = Srl.unquoteDouble(trimmed); // keep side spaces in quotation
+        } else if (Srl.isQuotedSingle(trimmed)) {
+            // genba special support (single handling is only for map)
+            filtered = Srl.unquoteSingle(trimmed); // me too
+        } else {
+            filtered = trimmed;
+        }
+        return filtered;
     }
 
     // ===================================================================================
