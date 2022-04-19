@@ -127,7 +127,7 @@ public class SwaggerSpecDefaultValueHandler {
         br.addElement("    /** Sea Map e.g. {dockside=over,hangar=mystic} */ *Bad");
         br.addElement("    public Map<String, String> seaMap;");
         br.addElement("  (o): (correct map)");
-        br.addElement("    /** Sea Map e.g. {dockside:over,hangar:mystic} */ OK");
+        br.addElement("    /** Sea Map e.g. {dockside:over,hangar:mystic} */ OK: JSON style");
         br.addElement("    public Map<String, String> seaMap;");
         br.addItem("typeDocMeta");
         br.addElement(typeDocMeta);
@@ -312,27 +312,37 @@ public class SwaggerSpecDefaultValueHandler {
      * @return The extracted default value from the comment simply. (NullAllowed: null comment or "null")
      */
     protected Object extractDefaultValueFromComment(String comment) { // except map type
-        if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-            final String commentWithoutLine = comment.replaceAll("\r?\n", " ");
-            if (commentWithoutLine.contains(" e.g. \"")) {
-                return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. \""), "\"");
-            }
-            if (commentWithoutLine.contains(" e.g. [")) {
-                final String defaultValue =
-                        DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(commentWithoutLine, " e.g. ["), "]");
-                return Arrays.stream(defaultValue.split(", *")).map(value -> {
-                    if (value.startsWith("\"") && value.endsWith("\"")) {
-                        return value.substring(1, value.length() - 1);
-                    }
-                    return "null".equals(value) ? null : value;
-                }).collect(Collectors.toList());
-            }
-            final Pattern pattern = Pattern.compile(" e\\.g\\. ([^ ]+)");
-            final Matcher matcher = pattern.matcher(commentWithoutLine);
-            if (matcher.find()) {
-                final String value = matcher.group(1);
+        if (DfStringUtil.is_Null_or_Empty(comment)) {
+            // attention: maybe javaparser behavior
+            // if both javadoc and line comment exist, null comment here
+            // e.g.
+            //  /** javadoc comment e.g. ... */
+            //  public String sea; // line comment
+            return null;
+        }
+        String parsedComment = comment.replaceAll("\r?\n", " ").trim();
+
+        // adjust mark rear space (but simple support)
+        parsedComment = Srl.replace(parsedComment, "e.g.  ", "e.g.").trim(); // allowed e.g.  "sea"
+        parsedComment = Srl.replace(parsedComment, "e.g. ", "e.g.").trim(); // allowed e.g."sea"
+
+        if (parsedComment.contains("e.g.\"")) {
+            return Srl.substringFirstFront(Srl.substringFirstRear(parsedComment, "e.g.\""), "\"").trim();
+        }
+        if (parsedComment.contains("e.g.[")) {
+            final String defaultValue = Srl.substringFirstFront(Srl.substringFirstRear(parsedComment, "e.g.["), "]").trim();
+            return Arrays.stream(defaultValue.split(", *")).map(value -> value.trim()).map(value -> {
+                if (value.startsWith("\"") && value.endsWith("\"")) {
+                    return value.substring(1, value.length() - 1);
+                }
                 return "null".equals(value) ? null : value;
-            }
+            }).collect(Collectors.toList());
+        }
+        final Pattern pattern = Pattern.compile("e\\.g\\.([^ ]+)");
+        final Matcher matcher = pattern.matcher(parsedComment);
+        if (matcher.find()) {
+            final String value = matcher.group(1);
+            return "null".equals(value) ? null : value;
         }
         return null;
     }
