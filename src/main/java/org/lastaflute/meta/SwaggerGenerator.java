@@ -129,8 +129,13 @@ public class SwaggerGenerator {
     //                                        --------------
     protected SwaggerOption createSwaggerOption(Consumer<SwaggerOption> opLambda) {
         final SwaggerOption swaggerOption = new SwaggerOption();
+        customizeSwaggerOption(swaggerOption);
         opLambda.accept(swaggerOption);
         return swaggerOption;
+    }
+
+    protected void customizeSwaggerOption(SwaggerOption swaggerOption) { // you can override
+        // do nothing as default
     }
 
     // ===================================================================================
