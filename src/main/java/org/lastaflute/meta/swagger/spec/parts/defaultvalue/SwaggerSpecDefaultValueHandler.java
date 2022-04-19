@@ -23,16 +23,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.dbflute.helper.dfmap.DfMapStyle;
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
+import org.dbflute.util.Srl;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
 import org.lastaflute.meta.exception.SwaggerDefaultValueTypeConversionFailureException;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataType;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataTypeHandler;
 import org.lastaflute.meta.swagger.spec.parts.enumtype.SwaggerSpecEnumHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author p1us2er0
@@ -40,6 +44,8 @@ import org.lastaflute.meta.swagger.spec.parts.enumtype.SwaggerSpecEnumHandler;
  * @since 0.5.1 split from SwaggerGenerator (2021/06/23 Wednesday at roppongi japanese)
  */
 public class SwaggerSpecDefaultValueHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(SwaggerSpecDefaultValueHandler.class);
 
     // ===================================================================================
     //                                                                           Attribute
@@ -151,9 +157,9 @@ public class SwaggerSpecDefaultValueHandler {
         });
     }
 
-    // -----------------------------------------------------
-    //                                              Iterable
-    //                                              --------
+    // ===================================================================================
+    //                                                                            Iterable
+    //                                                                            ========
     protected boolean isNonNestIterable(TypeDocMeta typeDocMeta) {
         return Iterable.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty();
     }
@@ -179,10 +185,11 @@ public class SwaggerSpecDefaultValueHandler {
         return OptionalThing.empty();
     }
 
-    // -----------------------------------------------------
-    //                                                  Map
-    //                                                 -----
+    // ===================================================================================
+    //                                                                                Map
+    //                                                                               =====
     protected boolean isNonNestMap(TypeDocMeta typeDocMeta) {
+        // #for_now jflute actually nest type document is not set when map, however no problem (2022/04/19)
         return Map.class.isAssignableFrom(typeDocMeta.getType()) && typeDocMeta.getNestTypeDocMetaList().isEmpty();
     }
 
@@ -190,61 +197,96 @@ public class SwaggerSpecDefaultValueHandler {
             Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
         // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
         // contributed by U-NEXT, thanks.
+        //
         // for now, migrated as plain logic first by jflute (2022/04/18)
+        // for now, mismatched type is not checked but Map is rare case by jflute (2022/04/19)
+        //
+        // change, delete exception info log, already improved exception handling of this handler by jflute (2022/04/19)
+        // change, use linked hash map to order by default values by jflute (2022/04/19)
+        // change, trim and unquoted for all types by jflute (2022/04/19)
+        // change, e.g. {} is allowed as empty map by jflute (2022/04/19)
+        // change, e.g. "{...}" is allowed (unquoted) for genba special supported by jflute (2022/04/19)
+        // change, e.g. {dockside:{...}}, use last '}' by jflute (2022/04/19)
+        // change, support map style e.g. map:{dockside={over=waves;table=waiting};hangar=mystic} by jflute (2022/04/19)
+        //
+        // for now again, no check mismatched type as map is rare and to keep compatible by jflute (2022/04/19)
         // _/_/_/_/_/_/_/_/_/_/
 
-        // java.util.Map<String, String> convert to [String, String]
-        final String[] keyValueArray = extractMapGenericTypeAsArray(typeDocMeta); // e.g. [String, String]
-        if (keyValueArray.length <= 1) { // non generic?
+        final String[] keyValueArray = extractMapGenericTypeAsArray(typeDocMeta); // e.g. [String, Integer]
+        if (keyValueArray == null || keyValueArray.length <= 1) { // non generic (or extended class of map?)
             return OptionalThing.empty();
         }
-        final String keyTypeName = keyValueArray[0].trim();
-        final String valueTypeName = keyValueArray[1].trim();
-        return OptionalThing.ofNullable(deriveMapDefaultValueByComment(typeDocMeta.getComment(), keyTypeName, valueTypeName), () -> {
-            throw new IllegalStateException("not found default value.");
+        final String keyTypeName = keyValueArray[0].trim(); // e.g. java.lang.String
+        final String valueTypeName = keyValueArray[1].trim(); // e.g. java.lang.Integer
+        final String comment = typeDocMeta.getComment(); // javadoc that may contain eg-default-value
+        return OptionalThing.ofNullable(deriveMapDefaultValueByComment(comment, keyTypeName, valueTypeName), () -> {
+            throw new IllegalStateException("not found default value: " + typeDocMeta.getName() + ", " + comment);
         });
     }
 
     protected String[] extractMapGenericTypeAsArray(TypeDocMeta typeDocMeta) {
-        // java.util.Map<String, String> convert to [String, String]
-        return DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(typeDocMeta.getTypeName(), "<"), ">").split(",");
+        final String typeName = typeDocMeta.getTypeName(); // e.g. java.util.Map<java.lang.String, java.lang.Integer>
+        if (typeName == null || !typeName.contains("<")) { // e.g. java.util.Map (non generic)
+            return null;
+        }
+        final String genericPart = Srl.substringFirstFront(Srl.substringFirstRear(typeName, "<"), ">");
+        return genericPart.split(","); // e.g. <java.lang.String, java.lang.Integer> to [java.lang.String, java.lang.Integer]
     }
 
     protected Object deriveMapDefaultValueByComment(String comment, String keyTypeName, String valueTypeName) {
         if (DfStringUtil.is_Null_or_Empty(comment)) {
+            // attention: maybe javaparser behavior
+            // if both javadoc and line comment exist, null comment here
+            // e.g.
+            //  /** javadoc comment e.g. ... */
+            //  public String sea; // line comment
             return null;
         }
-        final String egMark = "e.g. {";
+        final String egMark = "e.g.";
         if (!comment.contains(egMark)) {
             return null;
         }
-        final String defaultValue = DfStringUtil.substringFirstFront(DfStringUtil.substringFirstRear(comment, egMark), "}");
-        Map<Object, Object> map = DfCollectionUtil.newHashMap();
-        for (String keyValueEntry : defaultValue.split(",")) {
-            String[] entry = keyValueEntry.split(":");
-            Object key = entry[0];
-            Object value = entry[1];
-            if ("String".equals(keyTypeName)) {
-                key = egStringToJavaString(key.toString().trim());
-            }
-            if ("String".equals(valueTypeName)) {
-                value = egStringToJavaString(value.toString().trim());
-            }
-            map.put(key, value);
+        String egRearPart = Srl.substringFirstRear(comment, egMark).trim();
+        if (egRearPart.startsWith("\"") && Srl.count(egRearPart, "\"") >= 2) { // may be e.g. "{...}" ...
+            // genba special supported e.g. "{...}"
+            egRearPart = Srl.substringLastFront(Srl.substringFirstRear(egRearPart, "\""), "\"").trim();
         }
-        return map;
+        if (egRearPart.startsWith("{")) {
+            // if "}" does not exist, use until end point e.g. {dockside:over
+            final String defaultValue = Srl.substringLastFront(Srl.substringFirstRear(egRearPart, "{"), "}");
+            final Map<Object, Object> map = DfCollectionUtil.newLinkedHashMap(); // as order of default values
+            if (defaultValue.isEmpty()) { // e.g. {}
+                return map;
+            }
+            for (String keyValueEntry : defaultValue.split(",")) {
+                final String[] entry = keyValueEntry.split(":");
+                final String key = adjustMapKeyValueFormat(entry[0]);
+                final String value = adjustMapKeyValueFormat(entry[1]);
+                map.put(key, value);
+            }
+            return map;
+        } else if (egRearPart.startsWith(DfMapStyle.MAP_PREFIX + DfMapStyle.BEGIN_BRACE)) { // final weapon
+            final String mapStyle = Srl.substringLastFront(egRearPart, DfMapStyle.END_BRACE) + DfMapStyle.END_BRACE;
+            try {
+                return new DfMapStyle().fromMapString(mapStyle); // map style challenge
+            } catch (RuntimeException continued) {
+                logger.debug("Failed to challenge it as map style: mapStyle=" + mapStyle, continued);
+                return null; // as nothing
+            }
+        } else {
+            return null; // e.g. dockside
+        }
     }
 
-    private String egStringToJavaString(String egString) {
-        if (egString.startsWith("\"") && egString.endsWith("\"")) {
-            return egString.substring(1, egString.length() - 1);
-        }
-        return egString;
+    private String adjustMapKeyValueFormat(String exp) {
+        // trim and unquote both double and single quatations
+        // e.g. { "dockside" : "over", "hangar" : "mystic"} to {dockside:over,hangar:mystic}
+        return Srl.unquoteSingle(Srl.unquoteDouble(exp.trim()));
     }
 
-    // -----------------------------------------------------
-    //                                                 Enum
-    //                                                ------
+    // ===================================================================================
+    //                                                                               Enum
+    //                                                                              ======
     protected OptionalThing<Object> doDeriveEnumDefaultValue(TypeDocMeta typeDocMeta,
             Map<Class<?>, SwaggerSpecDataType> swaggerDataTypeMap) {
         final Object defaultValue = extractDefaultValueFromComment(typeDocMeta.getComment());
@@ -269,7 +311,7 @@ public class SwaggerSpecDefaultValueHandler {
      * @param comment The plain comment on property JavaDoc, may contain default value. (NullAllowed)
      * @return The extracted default value from the comment simply. (NullAllowed: null comment or "null")
      */
-    protected Object extractDefaultValueFromComment(String comment) {
+    protected Object extractDefaultValueFromComment(String comment) { // except map type
         if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
             final String commentWithoutLine = comment.replaceAll("\r?\n", " ");
             if (commentWithoutLine.contains(" e.g. \"")) {

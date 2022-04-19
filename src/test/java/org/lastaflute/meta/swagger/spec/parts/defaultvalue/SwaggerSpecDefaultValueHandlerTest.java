@@ -17,6 +17,7 @@ package org.lastaflute.meta.swagger.spec.parts.defaultvalue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,7 @@ import org.dbflute.utflute.core.PlainTestCase;
 import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
+import org.lastaflute.meta.exception.SwaggerDefaultValueTypeConversionFailureException;
 import org.lastaflute.meta.swagger.spec.parts.datatype.SwaggerSpecDataTypeHandler;
 import org.lastaflute.meta.swagger.spec.parts.enumtype.SwaggerSpecEnumHandler;
 import org.lastaflute.meta.unit.mock.dbflute.MockCDef;
@@ -45,6 +47,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
 
         // #hope jflute allow this case for easy comment (2022/04/18)
         assertFalse(handler().deriveDefaultValue(stringMeta("e.g. Sea of Dreams")).isPresent());
+        assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta(" e.g. SeaOfDreams")).get());
     }
 
     public void test_deriveDefaultValue_string_space() {
@@ -115,13 +118,13 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals(new BigDecimal("1.2"), handler().deriveDefaultValue(decimalMeta("Sea Count e.g. 1.2")).get());
 
         // none
-        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+        assertException(SwaggerDefaultValueTypeConversionFailureException.class, () -> {
             handler().deriveDefaultValue(integerMeta("Sea Count e.g. 1.0")); // integer is not decimal
         });
-        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+        assertException(SwaggerDefaultValueTypeConversionFailureException.class, () -> {
             handler().deriveDefaultValue(integerMeta("Sea Count e.g. mystic"));
         });
-        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+        assertException(SwaggerDefaultValueTypeConversionFailureException.class, () -> {
             handler().deriveDefaultValue(integerMeta("Sea Count e.g. 1234567890123456")); // too big for integer
         });
     }
@@ -176,14 +179,21 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals(Arrays.asList("\"dockside", "hangar\""), // comma is prior
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"dockside, hangar\"]")).get());
 
+        // #hope jflute trim side space in List elements (2022/04/19)
+        // side space
+        assertEquals(Arrays.asList("  \"dockside\" ", "\"hangar\" "), // not trimmed
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [  \"dockside\" , \"hangar\" ]")).get());
+        assertEquals(Arrays.asList(" dockside", "hangar "), // not trimmed (but only hangar front trimmed)
+                handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [ dockside,  hangar ]")).get());
+
         // number
         assertEquals(Arrays.asList(1, 2), handler().deriveDefaultValue(listMeta(Integer.class, "Sea List e.g. [1, 2]")).get());
         assertEquals(Arrays.asList(1, 2), handler().deriveDefaultValue(listMeta(Integer.class, "Sea List e.g. [\"1\", \"2\"]")).get());
 
-        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+        assertException(SwaggerDefaultValueTypeConversionFailureException.class, () -> {
             handler().deriveDefaultValue(listMeta(Integer.class, "Sea List e.g. [\"dockside\", \"hangar\"]"));
         });
-        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+        assertException(SwaggerDefaultValueTypeConversionFailureException.class, () -> {
             handler().deriveDefaultValue(listMeta(Integer.class, "Sea List e.g. [\"1\", \"hangar\"]"));
         });
 
@@ -217,8 +227,8 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         // test contributed code
         // that was migrated as plain logic first by jflute (2022/04/18)
         // problem candidates:
-        //  o not trimmed
-        //  o not unquoted
+        //  o (resolved) not trimmed
+        //  o (resolved) not unquoted
         //  o many ArrayIndexOutOfBoundsException cases
         // _/_/_/_/_/_/_/_/_/_/
 
@@ -226,24 +236,34 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals(newHashMap("dockside", "over", "hangar", "mystic"),
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic}")).get());
         assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over}")).get());
+        assertEquals(newHashMap("dockside", "/over/the/waves.jpg", "hangar", "mys_tic"),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:/over/the/waves.jpg,hangar:mys_tic}")).get());
 
-        // quoted, quotation remained, *problem?
-        assertEquals(newHashMap("\"dockside\"", "\"over\"", "\"hangar\"", "\"mystic\""),
+        // quoted, quotation remained, problem? => resolved
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"),
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {\"dockside\":\"over\",\"hangar\":\"mystic\"}")).get());
-        assertEquals(newHashMap("\"dockside\"", "\"over\""),
-                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {\"dockside\":\"over\"}")).get());
+        assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {\"dockside\":\"over\"}")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"),
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {'dockside':'over','hangar':'mystic'}")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // genba (special supported)
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. \"{'dockside':'over','hangar':'mystic'}\"")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // genba (special supported)
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. \"{'dockside':'over','hangar':'mystic'}\" (NullAllowed)")).get());
 
         // mark space
-        assertFalse(handler().deriveDefaultValue(mapMeta("e.g.{dockside:over}")).isPresent()); // same as others
+        assertEquals(newHashMap("dockside", "over"), // improved
+                handler().deriveDefaultValue(mapMeta("e.g.{dockside:over}")).get());
 
         // rear space
         assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // rear space
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic} ")).get());
         assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // rear space
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic} rear comment")).get());
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // genba
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over,hangar:mystic} (NullAllowed)")).get());
 
         // value space
-        assertEquals(newHashMap("dockside ", " over", " hangar ", " mystic"), // non trimmed, *problem?
+        assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // non trimmed, problem? => resolved
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside : over, hangar : mystic}")).get());
         assertEquals(newHashMap("dock side", "over the waves", "han gar", "mys tic"),
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dock side:over the waves,han gar:mys tic}")).get());
@@ -254,21 +274,20 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         // none
         assertFalse(handler().deriveDefaultValue(mapMeta("Sea Map")).isPresent());
         assertFalse(handler().deriveDefaultValue(mapMeta("Sea Map e.g.")).isPresent());
-        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
-            handler().deriveDefaultValue(mapMeta("Sea Map e.g. {}"));
-        });
+        assertEquals(newHashMap(), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {}")).get()); // problem? => resolved
         assertFalse(handler().deriveDefaultValue(mapMeta("e.g. dockside:over")).isPresent());
         assertFalse(handler().deriveDefaultValue(mapMeta("e.g. dockside:over}")).isPresent());
         assertFalse(handler().deriveDefaultValue(mapMeta("e.g. [dockside:over]")).isPresent());
 
         // broken
-        assertEquals(newHashMap("dockside", "over"), handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over")).get());
+        assertEquals(newHashMap("dockside", "over"), // keep contributed result
+                handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over")).get());
         assertEquals(newHashMap("dockside", "over the waves"), // different from others, however no problem
                 handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:over the waves")).get());
-        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
+        assertException(SwaggerDefaultValueParseFailureException.class, () -> { // *problem
             handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside=over"));
         });
-        assertException(ArrayIndexOutOfBoundsException.class, () -> { // *problem
+        assertException(SwaggerDefaultValueParseFailureException.class, () -> { // *problem
             handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside=over, hangar:mystic}"));
         });
         assertEquals(newHashMap("dockside", "over"), // different from others, however no problem
@@ -279,6 +298,41 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
                 handler().deriveDefaultValue(mapMetaAsInteger("Sea Map e.g. {dockside:1,hangar:2}")).get());
         assertEquals(newHashMap("dockside", "over", "hangar", "mystic"), // unrelated to integer type, no problem?
                 handler().deriveDefaultValue(mapMetaAsInteger("Sea Map e.g. {dockside:over,hangar:mystic}")).get());
+
+        // boolean
+        assertEquals(newHashMap("dockside", "true", "hangar", "false"),
+                handler().deriveDefaultValue(mapMetaAsBoolean("Sea Map e.g. {dockside:true,hangar:false}")).get());
+        assertEquals(newHashMap("dockside", "true", "hangar", "false"), // genba
+                handler().deriveDefaultValue(mapMetaAsBoolean("Sea Map e.g. {'dockside': true, 'hangar': false}")).get());
+
+        // non generic
+        assertFalse(handler().deriveDefaultValue(mapMetaNonGeneric("e.g. {dockside:over}")).isPresent());
+
+        // nest list (unsupported)
+        assertEquals(newHashMap("dockside", "[overthewaves]"),
+                handler().deriveDefaultValue(mapMetaAsBoolean("Sea Map e.g. {dockside:[overthewaves]}")).get());
+        assertException(SwaggerDefaultValueParseFailureException.class, () -> {
+            handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:[over,the]}"));
+        });
+
+        // nest map (unsupported)
+        {
+            Map<String, String> muchaKuchaMap = new LinkedHashMap<>();
+            muchaKuchaMap.put("dockside", "{over");
+            muchaKuchaMap.put("table", "waiting}");
+            muchaKuchaMap.put("hangar", "mystic");
+            assertEquals(muchaKuchaMap, // if you need nest map, use map:{} style
+                    handler().deriveDefaultValue(mapMeta("Sea Map e.g. {dockside:{over:waves,table:waiting},hangar:mystic}")).get());
+        }
+
+        // map style
+        {
+            Map<String, Object> mapStyleMap = new LinkedHashMap<>();
+            mapStyleMap.put("dockside", newLinkedHashMap("over", "waves", "table", "waiting"));
+            mapStyleMap.put("hangar", "mystic");
+            assertEquals(mapStyleMap, handler().deriveDefaultValue( // if you need nest map, use map:{} style
+                    mapMeta("Sea Map e.g. map:{dockside = map:{over =waves;table= waiting}; hangar =mystic} (NullAllowed)")).get());
+        }
     }
 
     private TypeDocMeta mapMeta(String comment) {
@@ -287,6 +341,14 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
 
     private TypeDocMeta mapMetaAsInteger(String comment) {
         return createMetaForMap("seaMap", String.class, Integer.class, comment);
+    }
+
+    private TypeDocMeta mapMetaAsBoolean(String comment) {
+        return createMetaForMap("seaMap", String.class, Boolean.class, comment);
+    }
+
+    private TypeDocMeta mapMetaNonGeneric(String comment) {
+        return createMetaForMap("seaMap", null, null, comment);
     }
 
     // ===================================================================================
@@ -346,7 +408,12 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         TypeDocMeta typeDocMeta = new TypeDocMeta();
         typeDocMeta.setName(name);
         typeDocMeta.setType(Map.class);
-        typeDocMeta.setTypeName("java.util.Map<" + keyType.getName() + ", " + valueType.getName() + ">");
+        StringBuilder sb = new StringBuilder();
+        sb.append("java.util.Map");
+        if (keyType != null && valueType != null) {
+            sb.append("<").append(keyType.getName()).append(", ").append(valueType.getName()).append(">");
+        }
+        typeDocMeta.setTypeName(sb.toString());
         typeDocMeta.setComment(comment);
         return typeDocMeta;
     }
