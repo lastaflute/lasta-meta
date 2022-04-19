@@ -189,7 +189,7 @@ public class SwaggerGenerator {
     //                                         -------------
     protected List<ActionDocMeta> generateActionDocMetaList(SwaggerOption swaggerOption) {
         final DocumentGenerator documentGenerator = newDocumentGenerator();
-        swaggerOption.getAdditionalSourceDirectoriesLambda().ifPresent(consumer -> {
+        swaggerOption.getAdditionalSourceDirectories().ifPresent(consumer -> {
             final List<String> dirList = new ArrayList<>();
             consumer.accept(dirList);
             for (String dir : dirList) {

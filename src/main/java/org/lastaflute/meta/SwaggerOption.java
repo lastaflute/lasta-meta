@@ -333,7 +333,7 @@ public class SwaggerOption {
     // -----------------------------------------------------
     //                                              Document
     //                                              --------
-    public OptionalThing<Consumer<List<String>>> getAdditionalSourceDirectoriesLambda() {
+    public OptionalThing<Consumer<List<String>>> getAdditionalSourceDirectories() {
         return OptionalThing.ofNullable(additionalSourceDirectoriesLambda, () -> {
             throw new IllegalStateException("Not set additionalSourceDirectoriesLambda.");
         });
