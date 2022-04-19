@@ -43,19 +43,19 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                          Definition
     //                                                                          ==========
-    /** source directory. */
-    protected static final String SRC_DIR = "src/main/java/";
+    /** The default source directory to search actions and jobs. */
+    protected static final String DEFAULT_SRC_DIR = "src/main/java/"; // trailing slash needed?
 
-    /** depth. */
-    protected static final int DEPTH = 4;
+    /** The default depth to search nest world. */
+    protected static final int DEFAULT_DEPTH = 4;
 
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** source directory. (NotNull) */
+    /** The list of source directories to search actions and jobs. (NotNull) */
     protected final List<String> srcDirList;
 
-    /** depth. */
+    /** The depth to search nest world. */
     protected int depth;
 
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
@@ -81,15 +81,15 @@ public class DocumentGenerator {
     //                                                                         ===========
     public DocumentGenerator() {
         this.srcDirList = prepareDefaultSrcDirList();
-        this.depth = DEPTH;
+        this.depth = DEFAULT_DEPTH;
         this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
     }
 
     protected List<String> prepareDefaultSrcDirList() {
         final List<String> srcDirList = DfCollectionUtil.newArrayList();
-        srcDirList.add(SRC_DIR);
+        srcDirList.add(DEFAULT_SRC_DIR);
         final String projectDirName = new File(".").getAbsoluteFile().getParentFile().getName();
-        final String commonDir = "../" + projectDirName.replaceAll("-.*", "-common") + "/" + SRC_DIR;
+        final String commonDir = "../" + projectDirName.replaceAll("-.*", "-common") + "/" + DEFAULT_SRC_DIR;
         if (new File(commonDir).exists()) {
             srcDirList.add(commonDir);
         }
@@ -98,7 +98,7 @@ public class DocumentGenerator {
 
     public DocumentGenerator(List<String> srcDirList) {
         this.srcDirList = srcDirList;
-        this.depth = DEPTH;
+        this.depth = DEFAULT_DEPTH;
         this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
     }
 

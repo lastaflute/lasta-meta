@@ -46,6 +46,11 @@ public class SwaggerOption {
     protected Supplier<String> applicationVersionOnUrlLambda; // null allowed
 
     // -----------------------------------------------------
+    //                                              Document
+    //                                              --------
+    protected Consumer<List<String>> additionalSourceDirectoriesLambda; // null allowed
+
+    // -----------------------------------------------------
     //                                                Action
     //                                                ------
     protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda; // null allowed
@@ -82,10 +87,25 @@ public class SwaggerOption {
      * <pre>
      * op.supplyApplicationVersionOnUrl(() -&gt; "v1");
      * </pre>
-     * @param oneArgLambda The callback to supply your application version on URL. (NotNull)
+     * @param noArgLambda The callback to supply your application version on URL. (NotNull)
      */
-    public void supplyApplicationVersionOnUrl(Supplier<String> oneArgLambda) {
-        this.applicationVersionOnUrlLambda = oneArgLambda;
+    public void supplyApplicationVersionOnUrl(Supplier<String> noArgLambda) {
+        this.applicationVersionOnUrlLambda = noArgLambda;
+    }
+
+    // ===================================================================================
+    //                                                                            Document
+    //                                                                            ========
+    /**
+     * Register additional source directories to parse for swagger. <br>
+     * Basically the path is supposed to be relative from your project root.
+     * <pre>
+     * op.registerAdditionalSourceDirectory(dirList -&gt; dirList.add("../../yourlib/src/main/java/"));
+     * </pre>
+     * @param oneArgLambda The callback to add your source directories to managed list. (NotNull)
+     */
+    public void registerAdditionalSourceDirectory(Consumer<List<String>> oneArgLambda) {
+        this.additionalSourceDirectoriesLambda = oneArgLambda;
     }
 
     // ===================================================================================
@@ -307,6 +327,15 @@ public class SwaggerOption {
     public OptionalThing<Supplier<String>> getApplicationVersionOnUrl() {
         return OptionalThing.ofNullable(applicationVersionOnUrlLambda, () -> {
             throw new IllegalStateException("Not set applicationVersionOnUrlLambda.");
+        });
+    }
+
+    // -----------------------------------------------------
+    //                                              Document
+    //                                              --------
+    public OptionalThing<Consumer<List<String>>> getAdditionalSourceDirectoriesLambda() {
+        return OptionalThing.ofNullable(additionalSourceDirectoriesLambda, () -> {
+            throw new IllegalStateException("Not set additionalSourceDirectoriesLambda.");
         });
     }
 

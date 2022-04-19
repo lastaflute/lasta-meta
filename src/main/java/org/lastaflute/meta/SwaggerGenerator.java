@@ -15,6 +15,7 @@
  */
 package org.lastaflute.meta;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -153,7 +154,7 @@ public class SwaggerGenerator {
             , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
             , List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) { // top-level tags
         final SwaggerSpecPathsSetupper pathsSetupper = createSwaggerSpecPathsSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
-        pathsSetupper.setupSwaggerPathsMap(filterActionDocMetaList(generateActionDocMetaList()));
+        pathsSetupper.setupSwaggerPathsMap(filterActionDocMetaList(generateActionDocMetaList(swaggerOption)));
     }
 
     // -----------------------------------------------------
@@ -181,10 +182,21 @@ public class SwaggerGenerator {
     // -----------------------------------------------------
     //                                         ActionDocMeta
     //                                         -------------
-    protected List<ActionDocMeta> generateActionDocMetaList() {
+    protected List<ActionDocMeta> generateActionDocMetaList(SwaggerOption swaggerOption) {
         final DocumentGenerator documentGenerator = newDocumentGenerator();
+        swaggerOption.getAdditionalSourceDirectoriesLambda().ifPresent(consumer -> {
+            final List<String> dirList = new ArrayList<>();
+            consumer.accept(dirList);
+            for (String dir : dirList) {
+                documentGenerator.addSrcDir(dir);
+            }
+        });
         customizeActionDocumentGenerator(documentGenerator);
         return documentGenerator.createActionDocumentAnalyzer().analyzeAction();
+    }
+
+    protected DocumentGenerator newDocumentGenerator() {
+        return new DocumentGenerator();
     }
 
     protected void customizeActionDocumentGenerator(DocumentGenerator documentGenerator) { // you can override
@@ -211,13 +223,6 @@ public class SwaggerGenerator {
     protected String extractActionJson(LaActionSwaggerable swaggerable) {
         final JsonResponse<Map<String, Object>> jsonResponse = swaggerable.json();
         return createJsonEngine().toJson(jsonResponse.getJsonResult());
-    }
-
-    // ===================================================================================
-    //                                                                  Document Generator
-    //                                                                  ==================
-    protected DocumentGenerator newDocumentGenerator() {
-        return new DocumentGenerator();
     }
 
     // ===================================================================================
