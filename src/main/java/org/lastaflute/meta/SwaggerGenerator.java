@@ -20,7 +20,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -47,11 +46,6 @@ import org.lastaflute.web.util.LaRequestUtil;
  * @author jflute
  */
 public class SwaggerGenerator {
-
-    // ===================================================================================
-    //                                                                          Definition
-    //                                                                          ==========
-    protected static final Pattern HTTP_METHOD_PATTERN = Pattern.compile("(.+)\\$.+");
 
     // ===================================================================================
     //                                                                           Attribute
