@@ -39,7 +39,7 @@ public class LaDocReflectionUtil {
     //  JsonResponse<List<SeaLandPiari>>. 1 to SeaLandPiari
     //  JsonResponse<List<Sea<Land>>>, 1 to Sea
     //  JsonResponse<List<Map<String, Object>>>, 1 to Map
-    // TODO p1us2er0 Refactor. (2017/10/13)
+    // #hope p1us2er0 Refactor. (2017/10/13)
     public static Class<?> extractElementType(Type type, int depth) {
         if (type instanceof ParameterizedType) {
             Type actualType = ((ParameterizedType) type).getActualTypeArguments()[0];
