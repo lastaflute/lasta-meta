@@ -71,12 +71,29 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
-    // basically called by action
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
+    //
+    // SwaggerGenerator                        // basically SwaggerAction calls
+    //  |
+    //  |-SwaggerJsonReader                    // read existing swagger.json
+    //  |
+    //  |-SwaggerSpecCreator                   // create swagger.json (if not existing)
+    //    (callback)
+    //     |-DocumentGenerator                 // use it for action information
+    //     |-SwaggerSpecPathsSetupper          // set up paths in swagger.json 
+    //        |-SwaggerSpecHttpMethodHandler   // resolve HTTP method
+    //        |-SwaggerSpecFormSetupper        // includes consumes, parameters
+    //        |-SwaggerSpecJsonBodySetupper    // includes consumes, definitions
+    //        |-SwaggerSpecResponsesSetupper   // includes produces
+    //        |-SwaggerSpecParameterSetupper   // for form, JSON body, responses
+    //        |-...
+    // _/_/_/_/_/_/_/_/_/_/
     /**
      * Generate swagger map. (no option)
      * @return The map of swagger information. (NotNull)
      */
-    public Map<String, Object> generateSwaggerMap() {
+    public Map<String, Object> generateSwaggerMap() { // basically called by action
         return generateSwaggerMap(op -> {});
     }
 
@@ -90,7 +107,7 @@ public class SwaggerGenerator {
      * @param opLambda The callback for settings of option. (NotNull)
      * @return The map of swagger information. (NotNull)
      */
-    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) {
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) { // basically called by action
         final OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
         if (swaggerJson.isPresent()) { // e.g. war world
             final Map<String, Object> swaggerMap = swaggerJson.get();
