@@ -41,7 +41,7 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                            Class Item
     //                                            ----------
-    // #hope jflute rename to actionType (2021/06/25)
+    // #giveup jflute rename to actionType (2021/06/25) but unknown scope so keep compatible completely (2022/04/22)
     /** The type declaring the execute method. e.g. org.docksidestage.app.web.sea.SeaAction.class (NotNull: after setup) */
     private transient Class<?> type; // exclude with gson serialize.
 
@@ -87,13 +87,13 @@ public class ActionDocMeta {
     // -----------------------------------------------------
     //                                           IN/OUT Item
     //                                           -----------
-    /** parameter type doc meta list. */
+    /** The List of meta object for path parameters of execute method. (NotNull: after setup, EmptyAllowed) */
     private List<TypeDocMeta> parameterTypeDocMetaList;
 
-    /** form type doc meta. */
+    /** The meta object for action form. (NullAllowed: if no form action) */
     private TypeDocMeta formTypeDocMeta;
 
-    /** return type doc meta. */
+    /** The meta object for action response (return). (NotNull) */
     private TypeDocMeta returnTypeDocMeta;
 
     // -----------------------------------------------------
