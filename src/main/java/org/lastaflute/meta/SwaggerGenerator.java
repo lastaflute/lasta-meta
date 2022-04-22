@@ -71,10 +71,10 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
-    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
     // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
     //
-    // SwaggerGenerator                        // basically SwaggerAction calls
+    // SwaggerGenerator@generateSwaggerMap()   // basically SwaggerAction calls
     //  |
     //  |-SwaggerJsonReader                    // read existing swagger.json
     //  |
@@ -231,6 +231,19 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                               Save
     //                                                                              ======
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
+    //
+    // SwaggerGenerator@saveSwaggerMeta        // basically [App]LastaDocTest calls
+    //  |-LaActionSwaggerable                  // get map of action information
+    //  |    ^-(SwaggerAction)                 // in your application
+    //  |-RealJsonEngine                       // make JSON string
+    //  |-OutputMetaSerializer                 // serialiize swagger.json
+    // _/_/_/_/_/_/_/_/_/_/
+    /**
+     * Save swagger meta of action information to swagger.json.
+     * @return The action instance that can handle swagger. (NotNull)
+     */
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
         outputMetaSerializer.saveSwaggerMeta(json);
