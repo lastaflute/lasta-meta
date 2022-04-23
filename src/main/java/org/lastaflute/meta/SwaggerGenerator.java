@@ -80,7 +80,8 @@ public class SwaggerGenerator {
     //  |
     //  |-SwaggerSpecCreator                   // create swagger.json (if not existing)
     //    (callback)
-    //     |-DocumentGenerator                 // use it for action information
+    //     |-DocumentGenerator                 // only for action's analyzer
+    //     |  |-ActionDocumentAnalyzer         // for action information
     //     |-SwaggerSpecPathsSetupper          // set up paths in swagger.json 
     //        |-SwaggerSpecHttpMethodHandler   // resolve HTTP method
     //        |-SwaggerSpecFormSetupper        // includes consumes, parameters
@@ -234,7 +235,7 @@ public class SwaggerGenerator {
     // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
     // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
     //
-    // SwaggerGenerator@saveSwaggerMeta        // basically [App]LastaDocTest calls
+    // SwaggerGenerator@saveSwaggerMeta()      // basically [App]LastaDocTest calls
     //  |-LaActionSwaggerable                  // get map of action information
     //  |    ^-(SwaggerAction)                 // in your application
     //  |-RealJsonEngine                       // make JSON string

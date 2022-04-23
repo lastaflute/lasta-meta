@@ -59,7 +59,9 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
-    // parts
+    // -----------------------------------------------------
+    //                                                 Parts
+    //                                                 -----
     protected final MetauseJsonEngineProvider metauseJsonEngineProvider;
     protected final NativeDataTypeProvider nativeDataTypeProvider;
     protected final FormFieldNameAdjuster formFieldNameAdjuster;
@@ -91,8 +93,19 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     // ===================================================================================
-    //                                                                            Generate
-    //                                                                            ========
+    //                                                                             Analyze
+    //                                                                             =======
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/23) *should be fixed when big refactoring
+    //
+    // ActionDocumentAnalyzer@analyzeAction()  // DocumentGenerator calls
+    //  |-ExecuteMethodCollector               // for action information
+    //  |-FormFieldNameAdjuster                // for camel and snake conversion
+    //  |-ExecuteFormTypeAnalyzer              // for properties of action form
+    //  |-ExecuteParameterAnalyzer             // for parameters of execute method
+    //  |-ExecuteReturnTypeAnalyzer            // for properties of action response
+    //  |-SourceParserReflector                // to use source code information
+    // _/_/_/_/_/_/_/_/_/_/
     public List<ActionDocMeta> analyzeAction() { // the list is per execute method
         return createExecuteMethodCollector().collectActionExecuteList().stream().map(execute -> {
             return createActionDocMeta(execute);

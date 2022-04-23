@@ -22,6 +22,7 @@ import org.lastaflute.core.util.Lato;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.6.9 (2075/03/05 Sunday)
  */
 public class JobDocMeta {
@@ -29,42 +30,36 @@ public class JobDocMeta {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** jobKey. */
+    // #hope jflute javadoc comment for job information fields (2022/04/23)
     private String jobKey;
-    /** jobUnique. */
     private String jobUnique;
-    /** jobTitle. */
     private String jobTitle;
-    /** jobDescription. */
     private String jobDescription;
-    /** cronExp. */
     private String cronExp;
-    /** typeName. */
+
     private String typeName;
-    /** simpleTypeName. */
     private String simpleTypeName;
-    /** description. */
     private String description;
-    /** type comment. */
     private String typeComment;
-    /** file type doc meta. */
     private List<TypeDocMeta> fieldTypeDocMetaList;
-    /** method mame. */
     private String methodName;
-    /** method comment. */
     private String methodComment;
-    /** params. */
+
     private Map<String, Object> params;
-    /** noticeLogLevel. */
     private String noticeLogLevel;
-    /** concurrentExec. */
     private String concurrentExec;
-    /** triggeredJobKeyList. */
     private List<String> triggeredJobKeyList;
-    /** file line count. */
+
     private Integer fileLineCount;
-    /** method line count. */
     private Integer methodLineCount;
+
+    // ===================================================================================
+    //                                                                      Basic Override
+    //                                                                      ==============
+    @Override
+    public String toString() {
+        return Lato.string(this);
+    }
 
     // ===================================================================================
     //                                                                            Accessor
@@ -211,10 +206,5 @@ public class JobDocMeta {
 
     public void setMethodLineCount(Integer methodLineCount) {
         this.methodLineCount = methodLineCount;
-    }
-
-    @Override
-    public String toString() {
-        return Lato.string(this);
     }
 }

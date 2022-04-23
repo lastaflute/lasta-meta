@@ -52,17 +52,32 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    // -----------------------------------------------------
+    //                                                 Basic
+    //                                                 -----
     /** The list of source directories to search actions and jobs. (NotNull) */
     protected final List<String> srcDirList;
 
-    /** The depth to search nest world. */
+    /** The depth to search nest world. (NotMinus) */
     protected int depth;
 
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
+    // -----------------------------------------------------
+    //                                                Option
+    //                                                ------
     /** Does it suppress job document generation? */
     protected boolean jobDocSuppressed; // for e.g. heavy scheduling (using e.g. DB) like Fess
+
+    // -----------------------------------------------------
+    //                                                 Parts
+    //                                                 -----
+    protected final DocumentAnalyzerFactory documentAnalyzerFactory = newDocumentGeneratorFactory();
+
+    protected DocumentAnalyzerFactory newDocumentGeneratorFactory() {
+        return new DocumentAnalyzerFactory();
+    }
 
     protected final MetauseJsonEngineProvider metauseJsonEngineProvider = newMetauseJsonEngineProvider();
 
@@ -79,13 +94,20 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
-    public DocumentGenerator() {
+    public DocumentGenerator() { // basically LastaFlute libraries use this
         this.srcDirList = prepareDefaultSrcDirList();
         this.depth = DEFAULT_DEPTH;
-        this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
+        this.sourceParserReflector = prepareSourceParserReflector(this.srcDirList);
     }
 
     protected List<String> prepareDefaultSrcDirList() {
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // e.g.
+        //  this project's src/main/java
+        //  the common's src/main/java
+        //
+        // basically LastaFlute projects have the common project if multi project
+        // _/_/_/_/_/_/_/_/_/_/
         final List<String> srcDirList = DfCollectionUtil.newArrayList();
         srcDirList.add(DEFAULT_SRC_DIR);
         final String projectDirName = new File(".").getAbsoluteFile().getParentFile().getName();
@@ -96,28 +118,29 @@ public class DocumentGenerator {
         return srcDirList;
     }
 
+    // for when default src directory is unneeded, e.g. not src/main/java
     public DocumentGenerator(List<String> srcDirList) {
         this.srcDirList = srcDirList;
         this.depth = DEFAULT_DEPTH;
-        this.sourceParserReflector = createSourceParserReflectorFactory().reflector(srcDirList);
+        this.sourceParserReflector = prepareSourceParserReflector(srcDirList);
+    }
+
+    protected OptionalThing<SourceParserReflector> prepareSourceParserReflector(List<String> srcDirList) {
+        return createSourceParserReflectorFactory().reflector(srcDirList);
     }
 
     protected SourceParserReflectorFactory createSourceParserReflectorFactory() {
         return new SourceParserReflectorFactory();
     }
 
-    protected DocumentAnalyzerFactory createDocumentGeneratorFactory() {
-        return new DocumentAnalyzerFactory();
-    }
-
     // ===================================================================================
     //                                                                              Option
     //                                                                              ======
-    public void addSrcDir(String srcDir) {
+    public void addSrcDir(String srcDir) { // important for e.g. application library project
         srcDirList.add(srcDir);
     }
 
-    public void setDepth(int depth) {
+    public void setDepth(int depth) { // to change default depth
         this.depth = depth;
     }
 
@@ -129,6 +152,15 @@ public class DocumentGenerator {
     // ===================================================================================
     //                                                                         Action Meta
     //                                                                         ===========
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/23) *should be fixed when big refactoring
+    //
+    // DocumentGenerator@saveLastaDocMeta()    // basically [App]LastaDocTest calls
+    //  |-ActionDocumentAnalyzer               // for action information
+    //  |-JobDocumentAnalyzer                  // for job information (if lasta-job exists)
+    //  |-MetauseJsonEngineProvider            // for json parser
+    //  |-OutputMetaSerializer                 // makes swagger.json
+    // _/_/_/_/_/_/_/_/_/_/
     public void saveLastaDocMeta() {
         final Map<String, Object> lastaMetaDetailMap = generateLastaDetailMap();
         final String json = createJsonEngine().toJson(lastaMetaDetailMap);
@@ -140,20 +172,23 @@ public class DocumentGenerator {
         final Map<String, Object> lastaMetaDetailMap = DfCollectionUtil.newLinkedHashMap();
         lastaMetaDetailMap.put("actionDocMetaList", actionDocMetaList);
         createJobDocumentAnalyzer().ifPresent(jobDocumentGenerator -> {
-            lastaMetaDetailMap.put("jobDocMetaList", jobDocumentGenerator.generateJobDocMetaList());
+            lastaMetaDetailMap.put("jobDocMetaList", jobDocumentGenerator.analyzeJobDocMetaList());
         });
         return lastaMetaDetailMap;
     }
 
+    // ===================================================================================
+    //                                                                   Document Analyzer
+    //                                                                   =================
     public ActionDocumentAnalyzer createActionDocumentAnalyzer() { // also called by e.g. swagger
-        return createDocumentGeneratorFactory().createActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
+        return documentAnalyzerFactory.createActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
     protected OptionalThing<JobDocumentAnalyzer> createJobDocumentAnalyzer() {
         if (jobDocSuppressed) {
             return OptionalThing.empty();
         }
-        return createDocumentGeneratorFactory().createJobDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
+        return documentAnalyzerFactory.createJobDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
     // ===================================================================================

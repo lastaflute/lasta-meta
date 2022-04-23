@@ -17,16 +17,19 @@ package org.lastaflute.meta.document;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.lastaflute.core.util.ContainerUtil;
 import org.lastaflute.di.core.exception.ComponentNotFoundException;
+import org.lastaflute.job.JobManager;
+import org.lastaflute.job.LaJob;
+import org.lastaflute.job.LaScheduledJob;
 import org.lastaflute.meta.document.docmeta.JobDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.sourceparser.SourceParserReflector;
-import org.lastaflute.meta.util.LaDocReflectionUtil;
 
 /**
  * @author p1us2er0
@@ -38,13 +41,13 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
-    /** source directory. (NotNull) */
+    /** The list of source directory. (NotNull) */
     protected final List<String> srcDirList;
 
-    /** depth. */
-    protected int depth;
+    /** depth of analyzed target, to avoid cyclic analyzing. */
+    protected final int depth;
 
-    /** sourceParserReflector. */
+    /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
     // ===================================================================================
@@ -56,20 +59,23 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
         this.sourceParserReflector = sourceParserReflector;
     }
 
-    // -----------------------------------------------------
-    //                                    Generate Meta List
-    //                                    ------------------
-    public List<JobDocMeta> generateJobDocMetaList() {
-        org.lastaflute.job.JobManager jobManager = getJobManager();
-        boolean rebooted = automaticallyRebootIfNeeds(jobManager);
+    // ===================================================================================
+    //                                                                             Analyze
+    //                                                                             =======
+    public List<JobDocMeta> analyzeJobDocMetaList() {
+        final JobManager jobManager = getJobManager();
+        final boolean rebooted = automaticallyRebootIfNeeds(jobManager);
         try {
-            return doGenerateJobDocMetaList(jobManager);
+            return prepareJobDocMetaList(jobManager);
         } finally {
             automaticallyDestroyIfNeeds(jobManager, rebooted);
         }
     }
 
-    protected org.lastaflute.job.JobManager getJobManager() {
+    // -----------------------------------------------------
+    //                                 JobManager Management
+    //                                 ---------------------
+    protected JobManager getJobManager() {
         try {
             return ContainerUtil.getComponent(org.lastaflute.job.JobManager.class);
         } catch (ComponentNotFoundException e) {
@@ -105,56 +111,71 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
         }
     }
 
-    protected List<JobDocMeta> doGenerateJobDocMetaList(org.lastaflute.job.JobManager jobManager) {
-        return jobManager.getJobList().stream().map(job -> {
-            JobDocMeta jobDocMeta = new JobDocMeta();
-            jobDocMeta.setJobKey(LaDocReflectionUtil.getNoException(() -> job.getJobKey().value()));
-            jobDocMeta.setJobUnique(
-                    LaDocReflectionUtil.getNoException(() -> job.getJobUnique().map(jobUnique -> jobUnique.value()).orElse(null)));
-            jobDocMeta.setJobTitle(
-                    LaDocReflectionUtil.getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getTitle()).orElse(null)));
-            jobDocMeta.setJobDescription(
-                    LaDocReflectionUtil.getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getDesc()).orElse(null)));
-            jobDocMeta.setCronExp(LaDocReflectionUtil.getNoException(() -> job.getCronExp().orElse(null)));
-            Class<? extends org.lastaflute.job.LaJob> jobClass = LaDocReflectionUtil.getNoException(() -> job.getJobType());
-            if (jobClass != null) {
-                jobDocMeta.setTypeName(jobClass.getName());
-                jobDocMeta.setSimpleTypeName(jobClass.getSimpleName());
-                jobDocMeta.setFieldTypeDocMetaList(Arrays.stream(jobClass.getDeclaredFields()).map(field -> {
-                    TypeDocMeta typeDocMeta = new TypeDocMeta();
-                    typeDocMeta.setName(field.getName());
-                    typeDocMeta.setType(field.getType());
-                    typeDocMeta.setTypeName(adjustTypeName(field.getGenericType()));
-                    typeDocMeta.setSimpleTypeName(adjustSimpleTypeName((field.getGenericType())));
-                    typeDocMeta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
-                    typeDocMeta.setAnnotationList(arrangeAnnotationList(typeDocMeta.getAnnotationTypeList()));
-
-                    sourceParserReflector.ifPresent(sourceParserReflector -> {
-                        sourceParserReflector.reflect(typeDocMeta, field.getType());
-                    });
-                    return typeDocMeta;
-                }).collect(Collectors.toList()));
-                jobDocMeta.setMethodName("run");
-                sourceParserReflector.ifPresent(sourceParserReflector -> {
-                    sourceParserReflector.reflect(jobDocMeta, jobClass);
-                });
-            }
-            jobDocMeta.setParams(LaDocReflectionUtil
-                    .getNoException(() -> job.getParamsSupplier().map(paramsSupplier -> paramsSupplier.supply()).orElse(null)));
-            jobDocMeta.setNoticeLogLevel(LaDocReflectionUtil.getNoException(() -> job.getNoticeLogLevel().name()));
-            jobDocMeta.setConcurrentExec(LaDocReflectionUtil.getNoException(() -> job.getConcurrentExec().name()));
-            jobDocMeta.setTriggeredJobKeyList(LaDocReflectionUtil.getNoException(() -> job.getTriggeredJobKeySet()
-                    .stream()
-                    .map(triggeredJobKey -> triggeredJobKey.value())
-                    .collect(Collectors.toList())));
-
-            return jobDocMeta;
-        }).collect(Collectors.toList());
-    }
-
     protected void automaticallyDestroyIfNeeds(org.lastaflute.job.JobManager jobManager, boolean rebooted) {
         if (rebooted) {
             jobManager.destroy();
+        }
+    }
+
+    // -----------------------------------------------------
+    //                                          Job Document
+    //                                          ------------
+    protected List<JobDocMeta> prepareJobDocMetaList(JobManager jobManager) {
+        return jobManager.getJobList().stream().map(job -> {
+            return createJobDocMeta(job);
+        }).collect(Collectors.toList());
+    }
+
+    protected JobDocMeta createJobDocMeta(LaScheduledJob job) {
+        // basically use getNoException() for simple implementation (and Job is extra!?) by jflute (2022/04/23)
+        final JobDocMeta jobDocMeta = new JobDocMeta();
+
+        jobDocMeta.setJobKey(getNoException(() -> job.getJobKey().value()));
+        jobDocMeta.setJobUnique(getNoException(() -> job.getJobUnique().map(jobUnique -> jobUnique.value()).orElse(null)));
+        jobDocMeta.setJobTitle(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getTitle()).orElse(null)));
+        jobDocMeta.setJobDescription(getNoException(() -> job.getJobNote().flatMap(jobNote -> jobNote.getDesc()).orElse(null)));
+        jobDocMeta.setCronExp(getNoException(() -> job.getCronExp().orElse(null)));
+
+        final Class<? extends LaJob> jobClass = getNoException(() -> job.getJobType());
+        if (jobClass != null) {
+            jobDocMeta.setTypeName(jobClass.getName());
+            jobDocMeta.setSimpleTypeName(jobClass.getSimpleName());
+            jobDocMeta.setFieldTypeDocMetaList(Arrays.stream(jobClass.getDeclaredFields()).map(field -> {
+                final TypeDocMeta typeDocMeta = new TypeDocMeta();
+                typeDocMeta.setName(field.getName());
+                typeDocMeta.setType(field.getType());
+                typeDocMeta.setTypeName(adjustTypeName(field.getGenericType()));
+                typeDocMeta.setSimpleTypeName(adjustSimpleTypeName((field.getGenericType())));
+                typeDocMeta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
+                typeDocMeta.setAnnotationList(arrangeAnnotationList(typeDocMeta.getAnnotationTypeList()));
+                sourceParserReflector.ifPresent(sourceParserReflector -> {
+                    sourceParserReflector.reflect(typeDocMeta, field.getType());
+                });
+                return typeDocMeta;
+            }).collect(Collectors.toList()));
+            jobDocMeta.setMethodName("run"); // fixedly
+            sourceParserReflector.ifPresent(sourceParserReflector -> {
+                sourceParserReflector.reflect(jobDocMeta, jobClass);
+            });
+        }
+
+        jobDocMeta.setParams(getNoException(() -> {
+            return job.getParamsSupplier().map(paramsSupplier -> paramsSupplier.supply()).orElse(null);
+        }));
+        jobDocMeta.setNoticeLogLevel(getNoException(() -> job.getNoticeLogLevel().name()));
+        jobDocMeta.setConcurrentExec(getNoException(() -> job.getConcurrentExec().name()));
+        jobDocMeta.setTriggeredJobKeyList(getNoException(() -> {
+            return job.getTriggeredJobKeySet().stream().map(triggeredJobKey -> triggeredJobKey.value()).collect(Collectors.toList());
+        }));
+
+        return jobDocMeta;
+    }
+
+    protected <T extends Object> T getNoException(Supplier<T> supplier) {
+        try {
+            return supplier.get();
+        } catch (Throwable t) {
+            return null;
         }
     }
 }

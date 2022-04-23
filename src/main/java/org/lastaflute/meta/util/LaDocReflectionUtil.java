@@ -18,21 +18,13 @@ package org.lastaflute.meta.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.util.function.Supplier;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.2.3 (2017/04/20 Thursday)
  */
 public class LaDocReflectionUtil {
-
-    public static <T extends Object> T getNoException(Supplier<T> supplier) {
-        try {
-            return supplier.get();
-        } catch (Throwable t) {
-            return null;
-        }
-    }
 
     // e.g. (actually FQCN)
     //  JsonResponse<List<String>>, 1 to String

@@ -29,6 +29,9 @@ import org.lastaflute.meta.document.parts.type.MetaTypeNameAdjuster;
  */
 public class BaseDocumentAnalyzer {
 
+    // ===================================================================================
+    //                                                                           Attribute
+    //                                                                           =========
     protected final MetaTypeNameAdjuster metaTypeNameAdjuster = newMetaTypeNameAdjuster();
 
     protected MetaTypeNameAdjuster newMetaTypeNameAdjuster() {
