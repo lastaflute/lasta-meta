@@ -24,6 +24,31 @@ import org.lastaflute.core.util.Lato;
 // #hope jflute split this to ParameterTypeDocMeta, ReturnTypeDocMeta for also debug (2022/04/19)
 // #hope jflute keep parent information for also debug (2022/04/19)
 /**
+ * TypeDocMeta holds structure of the Field of the Action class,
+ * the Field of the Job class, the Action Method Parameter,
+ * the Action Form / Body / Result itself and its Field.<br>
+ * <pre>
+ * Action's fields
+ *  |-nest: target field type's fields (and more nestable...)
+ *  |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Job's fields
+ *  |-nest: target field type's fields (and more nestable...)
+ *  |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Action's parameters of execute methods
+ *  |-(no nest)
+ * 
+ * Form/Body itself (*no name)
+ *  |-nest: Form/Body's fields
+ *     |-nest: target field type's fields (and more nestable...)
+ *     |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Result itself (*no name)
+ *  |-nest: Result's fields
+ *     |-nest: target field type's fields (and more nestable...)
+ *     |-nest: target generic type's fields (and more nestable...)
+ * </pre>
  * @author p1us2er0
  * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
@@ -38,8 +63,8 @@ public class TypeDocMeta {
     //                                            ----------
     // #hope e.g. comment in javadoc by jflute (2019/07/01)
     /**
-     * The name pf method parameter(path variable) or nest class property. (NullAllowed)<br>
-     * Null for request body or response body.
+     * The name pf Action Method Parameter or Action Form / Body / Result field. (NullAllowed)<br>
+     * Null for action form or request body or response body.
      */
     private String name;
 
@@ -116,9 +141,12 @@ public class TypeDocMeta {
     private List<String> annotationList = DfCollectionUtil.newArrayList(); // as default
 
     // -----------------------------------------------------
-    //                                       Nested Property
-    //                                       ---------------
-    /** The list of nested meta, basically properties of part class. (NotNull, EmptyAllowed) */
+    //                                          Nested Field
+    //                                          ------------
+    /**
+     * The list of nested meta, basically field of part class. (NotNull, EmptyAllowed)
+     * Action Form / Body / Result field is the target.
+     */
     private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList(); // as default
 
     // ===================================================================================
@@ -233,7 +261,7 @@ public class TypeDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                       Nested Property
+    //                                       Nested Field
     //                                       ---------------
     public List<TypeDocMeta> getNestTypeDocMetaList() {
         return nestTypeDocMetaList;
