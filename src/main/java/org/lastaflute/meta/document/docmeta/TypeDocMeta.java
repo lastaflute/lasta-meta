@@ -61,7 +61,6 @@ public class TypeDocMeta {
     // -----------------------------------------------------
     //                                            Basic Item
     //                                            ----------
-    // #hope e.g. comment in javadoc by jflute (2019/07/01)
     /**
      * The name pf Action Method Parameter or Action Form / Body / Result field. (NullAllowed)<br>
      * Null for action form or request body or response body.
@@ -144,7 +143,7 @@ public class TypeDocMeta {
     //                                          Nested Field
     //                                          ------------
     /**
-     * The list of nested meta, basically field of part class. (NotNull, EmptyAllowed)
+     * The list of nested meta, basically field of part class. (NotNull, EmptyAllowed)<br>
      * Action Form / Body / Result field is the target.
      */
     private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList(); // as default
