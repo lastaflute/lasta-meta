@@ -58,6 +58,20 @@ public class TypeDocMeta {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // instance variable names are referred by LastaDoc templates in DBFlute Engine
+    // (so field name is directly used by Gson)
+    //
+    // DocumentGenerator@saveLastaDocMeta() (called by e.g. UTFlute)
+    //   |
+    //   |            (by Gson)
+    //   +--(save)--> analyzed-lastadoc.json
+    //                    ^
+    //                    |            (by DBFlute FreeGen)
+    //                    +---(ref)--- LaDocHtml.vm (and others)
+    //
+    // so don't change easily without migration steps
+    // _/_/_/_/_/_/_/_/_/_/
     // -----------------------------------------------------
     //                                            Basic Item
     //                                            ----------
