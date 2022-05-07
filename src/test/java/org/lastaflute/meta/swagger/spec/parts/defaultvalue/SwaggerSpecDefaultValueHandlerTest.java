@@ -33,7 +33,7 @@ import org.lastaflute.meta.unit.mock.dbflute.MockCDef;
 
 /**
  * @author jflute
- * @since 0.5.4 (2022/04/18 Monday at roppongi japanese)
+ * @since 0.6.0 (2022/04/18 Monday at roppongi japanese)
  */
 public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
 
@@ -56,20 +56,20 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertEquals("Sea", handler().deriveDefaultValue(stringMeta("Sea Name e.g. Sea of Dreams")).get());
 
         // done jflute too strict so allow these cases for easy comment (2022/04/18)
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.  SeaOfDreams")).isPresent());
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.  \"Sea of Dreams\"")).isPresent());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.  SeaOfDreams")).get());
         assertEquals("Sea of Dreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.  \"Sea of Dreams\"")).get());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.   SeaOfDreams")).get());
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.    SeaOfDreams")).isPresent()); // four spaces bad
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.SeaOfDreams")).isPresent());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.SeaOfDreams")).get());
         assertEquals("Sea of Dreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.\"Sea of Dreams\"")).get());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Namee.g. SeaOfDreams")).get());
         assertEquals("Sea of Dreams", handler().deriveDefaultValue(stringMeta("Sea Namee.g. \"Sea of Dreams\"")).get());
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Namee.g.SeaOfDreams")).isPresent());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Namee.g.SeaOfDreams")).get());
         assertEquals("Sea of Dreams", handler().deriveDefaultValue(stringMeta("Sea Namee.g.\"Sea of Dreams\"")).get());
@@ -87,7 +87,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
     }
 
     public void test_deriveDefaultValue_string_none() {
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(stringMeta("e.g. SeaOfDreams")).isPresent());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("e.g. SeaOfDreams")).get());
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g. null")).isPresent());
@@ -96,7 +96,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.Sea of Dreams")).isPresent());
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.gSea of Dreams")).isPresent());
 
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.SeaOfDreams")).isPresent());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.SeaOfDreams")).get());
         assertEquals("Sea of Dreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.\"Sea of Dreams\"")).get());
@@ -113,7 +113,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g . Sea of Dreams")).isPresent());
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e. g. Sea of Dreams")).isPresent());
         assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e .g. Sea of Dreams")).isPresent());
-        // behavior changed since 0.5.4, no problem
+        // behavior changed since 0.6.0, no problem
         //assertFalse(handler().deriveDefaultValue(stringMeta("Sea Name e.g.\tSeaOfDreams")).isPresent());
         assertEquals("\tSeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.\tSeaOfDreams")).get());
         assertEquals("SeaOfDreams", handler().deriveDefaultValue(stringMeta("Sea Name e.g.\nSeaOfDreams")).get());
@@ -189,7 +189,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [\"dockside\",\"hangar\"]")).get());
 
         // mark space
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g.[\"dockside\", \"hangar\"]")).isPresent());
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g.[\"dockside\", \"hangar\"]")).get());
@@ -212,9 +212,9 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
 
         // done jflute trim side space in List elements (2022/04/19)
         // side space
-        assertEquals(Arrays.asList("dockside", "hangar"), // not trimmed => trimmed since 0.5.4
+        assertEquals(Arrays.asList("dockside", "hangar"), // not trimmed => trimmed since 0.6.0
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [  \"dockside\" , \"hangar\" ]")).get());
-        assertEquals(Arrays.asList("dockside", "hangar"), // not trimmed (but only hangar front trimmed) => trimmed since 0.5.4
+        assertEquals(Arrays.asList("dockside", "hangar"), // not trimmed (but only hangar front trimmed) => trimmed since 0.6.0
                 handler().deriveDefaultValue(listMeta(String.class, "Sea List e.g. [ dockside,  hangar ]")).get());
 
         // number
@@ -244,7 +244,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
 
         // non
         assertFalse(handler().deriveDefaultValue(listMeta(String.class, "Sea List")).isPresent());
-        // supported since 0.5.4
+        // supported since 0.6.0
         //assertFalse(handler().deriveDefaultValue(listMeta(String.class, "e.g. [dockside, hangar]")).isPresent());
         assertEquals(Arrays.asList("dockside", "hangar"),
                 handler().deriveDefaultValue(listMeta(String.class, "e.g. [dockside, hangar]")).get());
@@ -258,7 +258,7 @@ public class SwaggerSpecDefaultValueHandlerTest extends PlainTestCase {
     // ===================================================================================
     //                                                                                Map
     //                                                                               =====
-    public void test_deriveDefaultValue_map_basic() { // supported since 0.5.4 (unsupported until 0.5.3)
+    public void test_deriveDefaultValue_map_basic() { // supported since 0.6.0 (unsupported until 0.5.3)
         // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
         // test contributed code
         // that was migrated as plain logic first by jflute (2022/04/18)

@@ -17,7 +17,7 @@ package org.lastaflute.meta.exception;
 
 /**
  * @author jflute
- * @since 0.5.4 (2022/04/18 Monday at roppongi japanese)
+ * @since 0.6.0 (2022/04/18 Monday at roppongi japanese)
  */
 public class SwaggerDefaultValueTypeConversionFailureException extends LastaMetaBaseException {
 
