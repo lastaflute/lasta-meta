@@ -21,7 +21,34 @@ import java.util.List;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.util.Lato;
 
+// #hope jflute split this to ParameterTypeDocMeta, ReturnTypeDocMeta for also debug (2022/04/19)
+// #hope jflute keep parent information for also debug (2022/04/19)
 /**
+ * TypeDocMeta holds structure of the Field of the Action class,
+ * the Field of the Job class, the Action Method Parameter,
+ * the Action Form / Body / Result itself and its Field.<br>
+ * <pre>
+ * Action's fields
+ *  |-nest: target field type's fields (and more nestable...)
+ *  |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Job's fields
+ *  |-nest: target field type's fields (and more nestable...)
+ *  |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Action's parameters of execute methods
+ *  |-(no nest)
+ * 
+ * Form/Body itself (*no name)
+ *  |-nest: Form/Body's fields
+ *     |-nest: target field type's fields (and more nestable...)
+ *     |-nest: target generic type's fields (and more nestable...)
+ * 
+ * Result itself (*no name)
+ *  |-nest: Result's fields
+ *     |-nest: target field type's fields (and more nestable...)
+ *     |-nest: target generic type's fields (and more nestable...)
+ * </pre>
  * @author p1us2er0
  * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
@@ -31,23 +58,52 @@ public class TypeDocMeta {
     // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // instance variable names are referred by LastaDoc templates in DBFlute Engine
+    // (so field name is directly used by Gson)
+    //
+    // DocumentGenerator@saveLastaDocMeta() (called by e.g. UTFlute)
+    //   |
+    //   |            (by Gson)
+    //   +--(save)--> analyzed-lastadoc.json
+    //                    ^
+    //                    |            (by DBFlute FreeGen)
+    //                    +---(ref)--- LaDocHtml.vm (and others)
+    //
+    // so don't change easily without migration steps
+    // _/_/_/_/_/_/_/_/_/_/
     // -----------------------------------------------------
     //                                            Basic Item
     //                                            ----------
-    // #hope e.g. comment in javadoc by jflute (2019/07/01)
-    /** name. */
+    /**
+     * The name pf Action Method Parameter or Action Form / Body / Result field. (NullAllowed)<br>
+     * Null for action form or request body or response body.
+     */
     private String name;
 
-    /** public name. */
+    /**
+     * The public name for the interface of {@link #name}. (NullAllowed)<br>
+     * Camel case is common in java, but since there are cases where the interface uses snake case, it is kept separately from name.
+     */
     private String publicName;
 
-    /** type. */
+    /**
+     * The java class(type). (NotNull)<br>
+     * To transient to exclude with serialize in json.<br>
+     * If customize the serialize process with json, can combine {@link #type} and {@link #typeName} into one.
+     */
     private transient Class<?> type;
 
-    /** type name. */
+    /**
+     * The java class(type) as string. (NotNull)<br>
+     * e.g. org.docksidestage.SeaPark -> org.docksidestage.SeaPark
+     */
     private String typeName;
 
-    /** simple type name. */
+    /**
+     * The java class(type) as simple string. (NotNull)<br>
+     * e.g. org.docksidestage.SeaPark -> SeaPark
+     */
     private String simpleTypeName;
 
     // -----------------------------------------------------
@@ -55,34 +111,55 @@ public class TypeDocMeta {
     //                                          ------------
     // #thinking jflute the name "value" is too easy so... e.g. valueExpression? (2021/08/06)
     // #for_now jflute only referred at field comment of LastaDoc (swagger extracts type directly) (2021/08/05)
-    /** The value expression of the type, for example, enum values. (NullAllowed) */
+    /** The value expression of the type, for example, enum values, value derived from javadoc comment. (NullAllowed) */
     private String value; // e.g. {FML = Formalized, PRV = Provisinal, ...}
 
-    /** description. */
+    /**
+     * The description of javadoc comment. (NullAllowed)<br>
+     * The first sentence of the javadoc comment is the description.
+     */
     private String description;
 
-    /** comment. */
+    /**
+     * The javadoc comment. (NullAllowed)<br>
+     * Analyze the source code using javaparser. If don't have javadoc, or if can't see the source code at runtime, it will be Null.
+     */
     private String comment;
 
     // -----------------------------------------------------
     //                                          Generic Item
     //                                          ------------
-    /** generic type. */
+    /**
+     * The generic type of {@link #type}. (NullAllowed)<br>
+     * Only one generic is supported.<br>
+     * To transient to exclude with serialize in json.<br>
+     * e.g. SeaPark&lt;LandPark&gt; -> LandPark, SeaPark&lt;LandPark, XxxPark&gt; -> LandPark
+     */
     private transient Class<?> genericType;
 
     // -----------------------------------------------------
     //                                       Annotation Item
     //                                       ---------------
-    /** annotation type list. */
+    /**
+     * The list of annotation type. (NullAllowed, EmptyAllowed)<br>
+     * To transient to exclude with serialize in json.<br>
+     * If customize the serialize process with json, can combine {@link #annotationTypeList} and {@link #annotationList} into one.
+     */
     public transient List<Annotation> annotationTypeList;
 
-    /** annotation list. */
+    /**
+     * The list of annotation name(no package) and annotation parameters as string. (NotNull, EmptyAllowed)<br>
+     * e.g. SeaPark、SeaPark{dockside=over, hangar=mystic}<br>
+     */
     private List<String> annotationList = DfCollectionUtil.newArrayList(); // as default
 
     // -----------------------------------------------------
-    //                                       Nested Property
-    //                                       ---------------
-    /** The list of nested meta, basically properties of part class. (NotNull, EmptyAllowed) */
+    //                                          Nested Field
+    //                                          ------------
+    /**
+     * The list of nested meta, basically field of part class. (NotNull, EmptyAllowed)<br>
+     * Action Form / Body / Result field is the target.
+     */
     private List<TypeDocMeta> nestTypeDocMetaList = DfCollectionUtil.newArrayList(); // as default
 
     // ===================================================================================
@@ -197,7 +274,7 @@ public class TypeDocMeta {
     }
 
     // -----------------------------------------------------
-    //                                       Nested Property
+    //                                       Nested Field
     //                                       ---------------
     public List<TypeDocMeta> getNestTypeDocMetaList() {
         return nestTypeDocMetaList;

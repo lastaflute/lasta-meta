@@ -103,7 +103,8 @@ public class ExecuteReturnTypeAnalyzer {
 
         Class<?> returnClass = returnDocMeta.getGenericType();
         if (returnClass != null) { // e.g. List<String>, Sea<Land>
-            // TODO p1us2er0 optimisation, generic handling in analyzeReturnClass() (2015/09/30)
+            // #hope p1us2er0 optimisation, generic handling in analyzeReturnClass() (2015/09/30)
+            // #thinking jflute 7 years later, no generic trouble so no problem? (2022/04/21)
             final Map<String, Type> genericParameterTypesMap = DfCollectionUtil.newLinkedHashMap();
             final Type[] parameterTypes = DfReflectionUtil.getGenericParameterTypes(method.getGenericReturnType());
             final TypeVariable<?>[] typeVariables = returnClass.getTypeParameters();

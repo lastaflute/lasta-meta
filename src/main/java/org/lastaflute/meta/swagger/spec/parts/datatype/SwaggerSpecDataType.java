@@ -19,7 +19,7 @@ import java.util.function.BiFunction;
 
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
-import org.lastaflute.meta.exception.SwaggerDefaultValueParseFailureException;
+import org.lastaflute.meta.exception.SwaggerDefaultValueTypeConversionFailureException;
 
 /**
  * @author p1us2er0
@@ -38,18 +38,47 @@ public class SwaggerSpecDataType {
         this.defaultValueFunction = (typeDocMeta, value) -> {
             try {
                 return defaultValueFunction.apply(typeDocMeta, value);
-            } catch (Exception e) {
-                final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
-                br.addNotice("Failed to parse the swagger default value in javadoc's comment.");
-                br.addItem("Type");
-                br.addElement(typeDocMeta.getType());
-                br.addItem("Javadoc");
-                br.addElement(typeDocMeta.getComment());
-                br.addItem("Swagger Default Value");
-                br.addElement(value);
-                final String msg = br.buildExceptionMessage();
-                throw new SwaggerDefaultValueParseFailureException(msg, e);
+            } catch (RuntimeException e) {
+                final String msg = buildDefaultValueTypeConversionFailureMessage(typeDocMeta, value);
+                throw new SwaggerDefaultValueTypeConversionFailureException(msg, e);
             }
         };
+    }
+
+    protected String buildDefaultValueTypeConversionFailureMessage(TypeDocMeta typeDocMeta, Object value) {
+        final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+        br.addNotice("Cannot convert the \"e.g. default value\" to property type");
+        br.addItem("Advice");
+        br.addElement("Make sure your \"e.g. default value\" in javadoc's comment.");
+        br.addElement("Mismatched type? or Broken expression?");
+        br.addElement("For example:");
+        br.addElement("  (x): (mismatched type)");
+        br.addElement("    /** Sea Count e.g. over */ *Bad");
+        br.addElement("    public Integer seaCount;");
+        br.addElement("  (o):");
+        br.addElement("    /** Sea Count e.g. 1 */ OK");
+        br.addElement("    public Integer seaCount;");
+        br.addElement("");
+        br.addElement("  (x): (broken expression)");
+        br.addElement("    /** Sea Date e.g. 2022@04-18 */ *Bad");
+        br.addElement("    public LocalDate seaDate;");
+        br.addElement("  (o):");
+        br.addElement("    /** Sea Date e.g. 2022-04-18 */ OK");
+        br.addElement("    public LocalDate seaDate;");
+        br.addItem("typeDocMeta");
+        br.addElement(typeDocMeta);
+        br.addItem("Property Name");
+        br.addElement(typeDocMeta.getName());
+        br.addItem("Property Type");
+        br.addElement(typeDocMeta.getType());
+        final String simpleTypeName = typeDocMeta.getSimpleTypeName();
+        if (simpleTypeName != null) {
+            br.addElement("(type name: " + simpleTypeName + ")");
+        }
+        br.addItem("Javadoc");
+        br.addElement(typeDocMeta.getComment());
+        br.addItem("Default Value");
+        br.addElement(value);
+        return br.buildExceptionMessage();
     }
 }

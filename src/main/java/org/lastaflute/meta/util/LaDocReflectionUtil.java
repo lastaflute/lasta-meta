@@ -18,28 +18,20 @@ package org.lastaflute.meta.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
-import java.util.function.Supplier;
 
 /**
  * @author p1us2er0
+ * @author jflute
  * @since 0.2.3 (2017/04/20 Thursday)
  */
 public class LaDocReflectionUtil {
-
-    public static <T extends Object> T getNoException(Supplier<T> supplier) {
-        try {
-            return supplier.get();
-        } catch (Throwable t) {
-            return null;
-        }
-    }
 
     // e.g. (actually FQCN)
     //  JsonResponse<List<String>>, 1 to String
     //  JsonResponse<List<SeaLandPiari>>. 1 to SeaLandPiari
     //  JsonResponse<List<Sea<Land>>>, 1 to Sea
     //  JsonResponse<List<Map<String, Object>>>, 1 to Map
-    // TODO p1us2er0 Refactor. (2017/10/13)
+    // #hope p1us2er0 Refactor. (2017/10/13)
     public static Class<?> extractElementType(Type type, int depth) {
         if (type instanceof ParameterizedType) {
             Type actualType = ((ParameterizedType) type).getActualTypeArguments()[0];

@@ -167,7 +167,7 @@ public class SwaggerDiff {
     }
 
     protected String decodeContent(String swaggerContent, String encoding) throws UnsupportedEncodingException {
-        // TODO awaawa fix later, about '%24' problem by jflute (2021/06/08)
+        // #hope jflute fix later, about '%24' problem (2021/06/08)
         String filtered = swaggerContent;
         filtered = Srl.replace(filtered, "%24", "$");
         filtered = Srl.replace(filtered, "%3C", "<");

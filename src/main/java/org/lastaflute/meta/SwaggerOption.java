@@ -21,13 +21,16 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
+import org.lastaflute.core.util.Lato;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.web.api.BusinessFailureMapping;
 
 /**
+ * The option for swagger process e.g. SwaggerGenerator.
  * @author p1us2er0
  * @author jflute
  */
@@ -39,25 +42,31 @@ public class SwaggerOption {
     // -----------------------------------------------------
     //                                                 Basic
     //                                                 -----
-    protected Function<String, String> basePathLambda;
+    protected Function<String, String> basePathLambda; // null allowed
+    protected Supplier<String> applicationVersionOnUrlLambda; // null allowed
+
+    // -----------------------------------------------------
+    //                                              Document
+    //                                              --------
+    protected Consumer<List<String>> additionalSourceDirectoriesLambda; // null allowed
 
     // -----------------------------------------------------
     //                                                Action
     //                                                ------
-    protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda;
-    protected Predicate<ActionDocMeta> targetActionDocMetaLambda;
-    protected Function<ActionDocMeta, Integer> successHttpStatusLambda;
-    protected Function<ActionDocMeta, SwaggerFailureHttpStatusResource> failureHttpStatusLambda;
+    protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda; // null allowed
+    protected Predicate<ActionDocMeta> targetActionDocMetaLambda; // null allowed
+    protected Function<ActionDocMeta, Integer> successHttpStatusLambda; // null allowed
+    protected Function<ActionDocMeta, SwaggerFailureHttpStatusResource> failureHttpStatusLambda; // null allowed
 
     // -----------------------------------------------------
     //                                                Header
     //                                                ------
-    protected List<Map<String, Object>> headerParameterList;
+    protected List<Map<String, Object>> headerParameterList; // null allowed, lazy-loaded
 
     // -----------------------------------------------------
     //                                              Security
     //                                              --------
-    protected List<Map<String, Object>> securityDefinitionList;
+    protected List<Map<String, Object>> securityDefinitionList; // null allowed, lazy-loaded
 
     // ===================================================================================
     //                                                                               Basic
@@ -71,6 +80,32 @@ public class SwaggerOption {
      */
     public void derivedBasePath(Function<String, String> oneArgLambda) {
         this.basePathLambda = oneArgLambda;
+    }
+
+    /**
+     * Supply your application version on URL. e.g. /showbase/v1/
+     * <pre>
+     * op.supplyApplicationVersionOnUrl(() -&gt; "v1");
+     * </pre>
+     * @param noArgLambda The callback to supply your application version on URL. (NotNull)
+     */
+    public void supplyApplicationVersionOnUrl(Supplier<String> noArgLambda) {
+        this.applicationVersionOnUrlLambda = noArgLambda;
+    }
+
+    // ===================================================================================
+    //                                                                            Document
+    //                                                                            ========
+    /**
+     * Register additional source directories to parse for swagger. <br>
+     * Basically the path is supposed to be relative from your project root.
+     * <pre>
+     * op.registerAdditionalSourceDirectory(dirList -&gt; dirList.add("../../yourlib/src/main/java/"));
+     * </pre>
+     * @param oneArgLambda The callback to add your source directories to managed list. (NotNull)
+     */
+    public void registerAdditionalSourceDirectory(Consumer<List<String>> oneArgLambda) {
+        this.additionalSourceDirectoriesLambda = oneArgLambda;
     }
 
     // ===================================================================================
@@ -270,6 +305,14 @@ public class SwaggerOption {
     }
 
     // ===================================================================================
+    //                                                                      Basic Override
+    //                                                                      ==============
+    @Override
+    public String toString() {
+        return Lato.string(this);
+    }
+
+    // ===================================================================================
     //                                                                            Accessor
     //                                                                            ========
     // -----------------------------------------------------
@@ -278,6 +321,21 @@ public class SwaggerOption {
     public OptionalThing<Function<String, String>> getDerivedBasePath() {
         return OptionalThing.ofNullable(basePathLambda, () -> {
             throw new IllegalStateException("Not set basePathLambda.");
+        });
+    }
+
+    public OptionalThing<Supplier<String>> getApplicationVersionOnUrl() {
+        return OptionalThing.ofNullable(applicationVersionOnUrlLambda, () -> {
+            throw new IllegalStateException("Not set applicationVersionOnUrlLambda.");
+        });
+    }
+
+    // -----------------------------------------------------
+    //                                              Document
+    //                                              --------
+    public OptionalThing<Consumer<List<String>>> getAdditionalSourceDirectories() {
+        return OptionalThing.ofNullable(additionalSourceDirectoriesLambda, () -> {
+            throw new IllegalStateException("Not set additionalSourceDirectoriesLambda.");
         });
     }
 

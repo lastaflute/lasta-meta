@@ -134,18 +134,15 @@ public class SwaggerSpecCreator {
     }
 
     protected String deriveBasePath(SwaggerOption swaggerOption) {
-        StringBuilder basePath = new StringBuilder();
-        basePath.append(currentRequest.getContextPath() + "/");
-        prepareApplicationVersion().ifPresent(applicationVersion -> {
-            basePath.append(applicationVersion + "/");
+        final StringBuilder basePathSb = new StringBuilder();
+        basePathSb.append(currentRequest.getContextPath() + "/"); // e.g. /showbase/
+        swaggerOption.getApplicationVersionOnUrl().ifPresent(supplier -> {
+            basePathSb.append(supplier.get() + "/"); // e.g. /showbase/v1/
         });
+        final String currentPath = basePathSb.toString();
         return swaggerOption.getDerivedBasePath().map(derivedBasePath -> {
-            return derivedBasePath.apply(basePath.toString());
-        }).orElse(basePath.toString());
-    }
-
-    protected OptionalThing<String> prepareApplicationVersion() {
-        return OptionalThing.empty();
+            return derivedBasePath.apply(currentPath); // filtered by application
+        }).orElse(currentPath);
     }
 
     // ===================================================================================

@@ -15,11 +15,11 @@
  */
 package org.lastaflute.meta;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -48,11 +48,6 @@ import org.lastaflute.web.util.LaRequestUtil;
 public class SwaggerGenerator {
 
     // ===================================================================================
-    //                                                                          Definition
-    //                                                                          ==========
-    protected static final Pattern HTTP_METHOD_PATTERN = Pattern.compile("(.+)\\$.+");
-
-    // ===================================================================================
     //                                                                           Attribute
     //                                                                           =========
     protected final MetauseJsonEngineProvider jsonEngineProvider = newMetaJsonEngineProvider();
@@ -76,12 +71,30 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                            Generate
     //                                                                            ========
-    // basically called by action
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
+    //
+    // SwaggerGenerator@generateSwaggerMap()   // basically SwaggerAction calls
+    //  |
+    //  |-SwaggerJsonReader                    // read existing swagger.json
+    //  |
+    //  |-SwaggerSpecCreator                   // create swagger.json (if not existing)
+    //    (callback)
+    //     |-DocumentGenerator                 // only for action's analyzer
+    //     |  |-ActionDocumentAnalyzer         // for action information
+    //     |-SwaggerSpecPathsSetupper          // set up paths in swagger.json 
+    //        |-SwaggerSpecHttpMethodHandler   // resolve HTTP method
+    //        |-SwaggerSpecFormSetupper        // includes consumes, parameters
+    //        |-SwaggerSpecJsonBodySetupper    // includes consumes, definitions
+    //        |-SwaggerSpecResponsesSetupper   // includes produces
+    //        |-SwaggerSpecParameterSetupper   // for form, JSON body, responses
+    //        |-...
+    // _/_/_/_/_/_/_/_/_/_/
     /**
      * Generate swagger map. (no option)
      * @return The map of swagger information. (NotNull)
      */
-    public Map<String, Object> generateSwaggerMap() {
+    public Map<String, Object> generateSwaggerMap() { // basically called by action
         return generateSwaggerMap(op -> {});
     }
 
@@ -95,7 +108,7 @@ public class SwaggerGenerator {
      * @param opLambda The callback for settings of option. (NotNull)
      * @return The map of swagger information. (NotNull)
      */
-    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) {
+    public Map<String, Object> generateSwaggerMap(Consumer<SwaggerOption> opLambda) { // basically called by action
         final OptionalThing<Map<String, Object>> swaggerJson = readSwaggerJson();
         if (swaggerJson.isPresent()) { // e.g. war world
             final Map<String, Object> swaggerMap = swaggerJson.get();
@@ -128,8 +141,13 @@ public class SwaggerGenerator {
     //                                        --------------
     protected SwaggerOption createSwaggerOption(Consumer<SwaggerOption> opLambda) {
         final SwaggerOption swaggerOption = new SwaggerOption();
+        customizeSwaggerOption(swaggerOption);
         opLambda.accept(swaggerOption);
         return swaggerOption;
+    }
+
+    protected void customizeSwaggerOption(SwaggerOption swaggerOption) { // you can override
+        // do nothing as default
     }
 
     // ===================================================================================
@@ -153,7 +171,7 @@ public class SwaggerGenerator {
             , Map<String, Map<String, Object>> definitionsMap // map of top-level definitions
             , List<Map<String, Object>> tagsList, SwaggerOption swaggerOption) { // top-level tags
         final SwaggerSpecPathsSetupper pathsSetupper = createSwaggerSpecPathsSetupper(pathsMap, definitionsMap, tagsList, swaggerOption);
-        pathsSetupper.setupSwaggerPathsMap(filterActionDocMetaList(generateActionDocMetaList()));
+        pathsSetupper.setupSwaggerPathsMap(filterActionDocMetaList(generateActionDocMetaList(swaggerOption)));
     }
 
     // -----------------------------------------------------
@@ -181,8 +199,25 @@ public class SwaggerGenerator {
     // -----------------------------------------------------
     //                                         ActionDocMeta
     //                                         -------------
-    protected List<ActionDocMeta> generateActionDocMetaList() {
-        return new DocumentGenerator().createActionDocumentAnalyzer().analyzeAction();
+    protected List<ActionDocMeta> generateActionDocMetaList(SwaggerOption swaggerOption) {
+        final DocumentGenerator documentGenerator = newDocumentGenerator();
+        swaggerOption.getAdditionalSourceDirectories().ifPresent(consumer -> {
+            final List<String> dirList = new ArrayList<>();
+            consumer.accept(dirList);
+            for (String dir : dirList) {
+                documentGenerator.addSrcDir(dir);
+            }
+        });
+        customizeActionDocumentGenerator(documentGenerator);
+        return documentGenerator.createActionDocumentAnalyzer().analyzeAction();
+    }
+
+    protected DocumentGenerator newDocumentGenerator() {
+        return new DocumentGenerator();
+    }
+
+    protected void customizeActionDocumentGenerator(DocumentGenerator documentGenerator) { // you can override
+        // do nothing as default
     }
 
     protected List<ActionDocMeta> filterActionDocMetaList(List<ActionDocMeta> actionDocMetaList) {
@@ -197,6 +232,19 @@ public class SwaggerGenerator {
     // ===================================================================================
     //                                                                               Save
     //                                                                              ======
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // [call hierarchy] (2022/04/22) *should be fixed when big refactoring
+    //
+    // SwaggerGenerator@saveSwaggerMeta()      // basically [App]LastaDocTest calls
+    //  |-LaActionSwaggerable                  // get map of action information
+    //  |    ^-(SwaggerAction)                 // in your application
+    //  |-RealJsonEngine                       // make JSON string
+    //  |-OutputMetaSerializer                 // serialiize swagger.json
+    // _/_/_/_/_/_/_/_/_/_/
+    /**
+     * Save swagger meta of action information to swagger.json.
+     * @return The action instance that can handle swagger. (NotNull)
+     */
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
         outputMetaSerializer.saveSwaggerMeta(json);

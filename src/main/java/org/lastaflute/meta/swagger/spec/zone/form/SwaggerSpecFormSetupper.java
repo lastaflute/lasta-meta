@@ -97,7 +97,8 @@ public class SwaggerSpecFormSetupper {
     }
 
     protected void adjustDollarRef(String httpMethod, Map<String, Object> parameterMap) {
-        // TODO p1us2er0 mapping to string until analysis is correct (2018/10/03)
+        // #for_now p1us2er0 mapping to string until analysis is correct (2018/10/03)
+        // #thinking jflute certainly rough logic but no problem? (2022/04/21)
         if (parameterMap.containsKey("$ref")) {
             parameterMap.remove("$ref");
             parameterMap.put("type", "string");

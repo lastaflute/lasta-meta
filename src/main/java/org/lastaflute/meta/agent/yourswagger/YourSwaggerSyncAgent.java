@@ -57,7 +57,7 @@ public class YourSwaggerSyncAgent { // used by e.g. UTFlute
         }
 
         // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
-        // TODO awaawa improve SwaggerDiff determination by jflute (2021/05/29)
+        // #for_now jflute improve SwaggerDiff determination (2021/05/29)
         // _/_/_/_/_/_/_/_/_/_/
         if (diffResult.isEmpty()) { // means no diff
             logger.debug("No difference, so your swagger synchronized with server implementation!");

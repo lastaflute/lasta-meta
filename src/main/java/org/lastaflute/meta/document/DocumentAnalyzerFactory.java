@@ -35,16 +35,21 @@ public class DocumentAnalyzerFactory {
     //                                                                          Definition
     //                                                                          ==========
     private static final Logger logger = LoggerFactory.getLogger(DocumentAnalyzerFactory.class);
+
+    /** FQCN of LastaJob synbol class. */
     private static final String JOB_MANAGER_CLASS_NAME = "org.lastaflute.job.JobManager";
 
     // ===================================================================================
-    //                                                                            Document
-    //                                                                            ========
+    //                                                                              Action
+    //                                                                              ======
     public ActionDocumentAnalyzer createActionDocumentAnalyzer(List<String> srcDirList, int depth,
             OptionalThing<SourceParserReflector> sourceParserReflector) {
         return new ActionDocumentAnalyzer(srcDirList, depth, sourceParserReflector);
     }
 
+    // ===================================================================================
+    //                                                                                Job
+    //                                                                               =====
     public OptionalThing<JobDocumentAnalyzer> createJobDocumentAnalyzer(List<String> srcDirList, int depth,
             OptionalThing<SourceParserReflector> sourceParserReflector) {
         final String className = JOB_MANAGER_CLASS_NAME;
