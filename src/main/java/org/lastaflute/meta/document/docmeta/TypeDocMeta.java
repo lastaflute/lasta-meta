@@ -265,7 +265,7 @@ public class TypeDocMeta {
         this.annotationTypeList = annotationTypeList;
     }
 
-    public List<String> getAnnotationList() {
+    public List<String> getAnnotationList() { // list of annotation name (without package)
         return annotationList;
     }
 

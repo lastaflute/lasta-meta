@@ -51,7 +51,16 @@ public class ActionDocMeta {
     /** The simple name of type declaring the execute method. e.g. "SeaAction" (NotNull: after setup) */
     private String simpleTypeName;
 
-    /** The whole comment about action method, e.g. class javadoc + method javadoc. (NullAllowed: depends on java parser) */
+    // #hope jflute rename "description" to "summary" as possible (2024/02/13)
+    // but no change to keep compatible to old DBFlute version
+    /**
+     * The summary-like comment about action method,
+     * e.g. class javadoc first line + method javadoc first line.
+     * (NullAllowed: depends on java parser)
+     * 
+     * <p>This is not same as swagger's "description".
+     * (was same when old versions)</p>
+     */
     private String description; // basically extracted by java parser
 
     /** The javadoc of Action class. (NullAllowed: depends on java parser) */

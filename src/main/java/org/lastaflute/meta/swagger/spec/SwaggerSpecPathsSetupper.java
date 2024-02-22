@@ -25,6 +25,7 @@ import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.dbflute.util.DfStringUtil;
+import org.dbflute.util.Srl;
 import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.di.util.LdiSerializeUtil;
@@ -289,8 +290,8 @@ public class SwaggerSpecPathsSetupper {
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
-        httpMethodContentMap.put("summary", actionDocMeta.getDescription());
-        httpMethodContentMap.put("description", actionDocMeta.getDescription());
+        httpMethodContentMap.put("summary", derivePathSummary(actionDocMeta));
+        httpMethodContentMap.put("description", derivePathDescription(actionDocMeta));
 
         //     "parameters": [
         //       {
@@ -356,6 +357,55 @@ public class SwaggerSpecPathsSetupper {
         if (!optionalPathNameList.isEmpty()) {
             prepareOptionalParameterPath(actionDocMeta, optionalPathNameList);
         }
+    }
+
+    // -----------------------------------------------------
+    //                                               Comment
+    //                                               -------
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // changed at 0.6.1 by jflute (2024/02/13)
+    //
+    // summary should be short message (e.g. first line)
+    // description can have detail message for the API
+    //
+    // [summary]
+    // before/after = class first line + method first line
+    //
+    // [description]
+    // before = class first line + method first line
+    // after  = whole class comment + whole method comment (or null)
+    //
+    // to tell client API detail information by class/method comment
+    // _/_/_/_/_/_/_/_/_/_/
+
+    protected String derivePathSummary(ActionDocMeta actionDocMeta) { // returns null allowed
+        // the meta alerady has first-lines description, so use it plainly
+        return actionDocMeta.getDescription(); // null allowed (when no both class and method comment)
+    }
+
+    protected String derivePathDescription(ActionDocMeta actionDocMeta) { // returns null allowed
+        final String typeComment = actionDocMeta.getTypeComment(); // null allowed
+        final String methodComment = actionDocMeta.getMethodComment(); // null allowed
+        final StringBuilder sb = new StringBuilder();
+        if (Srl.is_NotNull_and_NotTrimmedEmpty(typeComment)) { // class comment at least
+            sb.append(typeComment);
+            if (Srl.is_NotNull_and_NotTrimmedEmpty(methodComment)) { // both comments
+                // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+                // (class comment)
+                //
+                // ---
+                //
+                // (method comment)
+                // _/_/_/_/_/_/_/_/_/_/
+                sb.append("\n\n---\n\n"); // delimiter
+                sb.append(methodComment);
+            }
+        } else { // no class comment
+            if (Srl.is_NotNull_and_NotTrimmedEmpty(methodComment)) { // method comment only
+                sb.append(methodComment);
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : null; // null allowed (when no both comments)
     }
 
     // -----------------------------------------------------
