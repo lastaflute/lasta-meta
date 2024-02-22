@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 
 import org.lastaflute.core.util.Lato;
+import org.lastaflute.meta.document.docmeta.reference.ActionDocReference;
 import org.lastaflute.web.ruts.config.ActionExecute;
 
 /**
@@ -27,7 +28,7 @@ import org.lastaflute.web.ruts.config.ActionExecute;
  * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
-public class ActionDocMeta {
+public class ActionDocMeta implements ActionDocReference {
 
     // ===================================================================================
     //                                                                           Attribute

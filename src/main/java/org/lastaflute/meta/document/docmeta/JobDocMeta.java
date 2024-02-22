@@ -19,13 +19,14 @@ import java.util.List;
 import java.util.Map;
 
 import org.lastaflute.core.util.Lato;
+import org.lastaflute.meta.document.docmeta.reference.JobDocReference;
 
 /**
  * @author p1us2er0
  * @author jflute
  * @since 0.6.9 (2075/03/05 Sunday)
  */
-public class JobDocMeta {
+public class JobDocMeta implements JobDocReference {
 
     // ===================================================================================
     //                                                                           Attribute

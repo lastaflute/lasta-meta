@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.util.Lato;
+import org.lastaflute.meta.document.docmeta.reference.TypeDocReference;
 
 // #hope jflute split this to ParameterTypeDocMeta, ReturnTypeDocMeta for also debug (2022/04/19)
 // #hope jflute keep parent information for also debug (2022/04/19)
@@ -53,7 +54,7 @@ import org.lastaflute.core.util.Lato;
  * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
-public class TypeDocMeta {
+public class TypeDocMeta implements TypeDocReference {
 
     // ===================================================================================
     //                                                                           Attribute
