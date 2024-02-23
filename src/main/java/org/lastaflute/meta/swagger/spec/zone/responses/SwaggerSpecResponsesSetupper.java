@@ -20,6 +20,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,6 +30,7 @@ import org.lastaflute.meta.SwaggerOption;
 import org.lastaflute.meta.SwaggerOption.SwaggerFailureHttpStatusResource;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.swagger.spec.parts.httpstatus.SwaggerSpecHttpStatusThrowsExtractor;
 import org.lastaflute.meta.swagger.spec.parts.produces.SwaggerSpecProducesHandler;
 import org.lastaflute.web.response.ApiResponse;
 import org.lastaflute.web.response.HtmlResponse;
@@ -40,6 +42,8 @@ import org.lastaflute.web.response.StreamResponse;
  * @since 0.5.1 split from SwaggerGenerator (2021/06/25 Friday at roppongi japanese)
  */
 public class SwaggerSpecResponsesSetupper {
+
+    private static final String CONTENT_MAP_KEY_DESCRIPTION = "description";
 
     // ===================================================================================
     //                                                                           Attribute
@@ -154,13 +158,87 @@ public class SwaggerSpecResponsesSetupper {
                 registerResponse(responseMap, httpStatus, contentMap);
             });
         }
+
+        // use failure response information of @throws on method comment
+        reflectThrowsResponse(responseMap, actionDocMeta);
+    }
+
+    // -----------------------------------------------------
+    //                                       Throws Response
+    //                                       ---------------
+    protected void reflectThrowsResponse(Map<String, Object> responseMap, ActionDocMeta actionDocMeta) {
+        // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+        // you can use Action specific responses by @throws statement
+        //
+        // e.g.
+        // if the method comment has @throws statement like this:
+        //  @throws EntityAlreadyDeletedException When the resource is not found (404)
+        //  @throws EntityAlreadyUpdatedException When the resource already has been updated (400)
+        //  @throws EntityAlreadyExistsException When the resource already exists (400)
+        //
+        // then:
+        //  400 --- client error :: When the resource already has been updated (EntityAlreadyUpdatedException)
+        //                       :: When the resource already exists (EntityAlreadyExistsException)
+        //  404 --- When the resource is not found (EntityAlreadyDeletedException)
+        //
+        // suppliments:
+        // o sort is depends on throws line order, developers can adjust by javadoc style easily
+        // _/_/_/_/_/_/_/_/_/_/
+        final String methodComment = actionDocMeta.getMethodComment();
+        if (Srl.is_Null_or_TrimmedEmpty(methodComment)) {
+            return;
+        }
+        final Map<String, List<Map<String, String>>> statusExceptionMap = extractStatusExceptionMap(methodComment);
+        for (Entry<String, List<Map<String, String>>> entry : statusExceptionMap.entrySet()) {
+            final String statusExp = entry.getKey();
+            final List<Map<String, String>> throwsList = entry.getValue();
+            for (Map<String, String> throwsMap : throwsList) {
+                final String exception = throwsMap.get(SwaggerSpecHttpStatusThrowsExtractor.THROWS_MAP_KEY_EXCEPTION);
+                final String description = throwsMap.get(SwaggerSpecHttpStatusThrowsExtractor.THROWS_MAP_KEY_DESCRIPTION);
+                final String contentDesc = description + " (" + exception + ")";
+                final Map<String, Object> contentMap = newContentMapWithDescription(contentDesc);
+
+                mergeResponse(responseMap, statusExp, contentMap);
+            }
+        }
+    }
+
+    protected Map<String, List<Map<String, String>>> extractStatusExceptionMap(String methodComment) {
+        final SwaggerSpecHttpStatusThrowsExtractor extractor = newSwaggerSpecHttpStatusThrowsExtractor();
+        return extractor.extractStatusThrowsMap(methodComment);
+    }
+
+    protected SwaggerSpecHttpStatusThrowsExtractor newSwaggerSpecHttpStatusThrowsExtractor() {
+        return new SwaggerSpecHttpStatusThrowsExtractor();
+    }
+
+    protected void mergeResponse(Map<String, Object> responseMap, String statusExp, Map<String, Object> contentMap) {
+        final Object valueObj = responseMap.get(statusExp);
+        if (valueObj != null) { // existing status
+            if (valueObj instanceof Map<?, ?>) { // basically true, just in case
+                @SuppressWarnings("unchecked")
+                final Map<String, Object> existingMap = (Map<String, Object>) valueObj;
+                final Object descObj = existingMap.get(CONTENT_MAP_KEY_DESCRIPTION);
+                if (descObj instanceof String) { // basically true, just incase
+                    final String existingDescription = (String) descObj;
+                    final String additinalDescription = (String) contentMap.get(CONTENT_MAP_KEY_DESCRIPTION);
+                    final String delimiter = "\n :: "; // Swagger UI shows on new line
+                    final String mergedDescription = existingDescription + delimiter + additinalDescription;
+                    existingMap.put(CONTENT_MAP_KEY_DESCRIPTION, mergedDescription);
+                }
+            } else {
+                // no way, but no exception just in case
+            }
+        } else { // new status
+            responseMap.put(statusExp, contentMap);
+        }
     }
 
     // ===================================================================================
-    //                                                                        Assist Logic
+    //                                                                        Response Map
     //                                                                        ============
-    protected LinkedHashMap<String, Object> newContentMapWithDescription(final String description) {
-        return DfCollectionUtil.newLinkedHashMap("description", description);
+    protected LinkedHashMap<String, Object> newContentMapWithDescription(String description) {
+        return DfCollectionUtil.newLinkedHashMap(CONTENT_MAP_KEY_DESCRIPTION, description);
     }
 
     protected void registerResponse(Map<String, Object> responseMap, int httpStatus, Map<String, Object> contentMap) {
