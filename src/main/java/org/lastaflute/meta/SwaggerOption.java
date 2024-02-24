@@ -67,6 +67,7 @@ public class SwaggerOption {
     protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda; // null allowed
     protected Function<ActionDocMeta, Integer> successHttpStatusLambda; // null allowed
     protected Function<ActionDocMeta, SwaggerFailureHttpStatusResource> failureHttpStatusLambda; // null allowed
+    protected boolean defaultFailureHttpStatusSuppressed;
 
     // -----------------------------------------------------
     //                                             Path Item
@@ -175,6 +176,10 @@ public class SwaggerOption {
      *     return ...; // e.g. 200 or 201 or 204
      * });
      * </pre>
+     * 
+     * <p>These settings override default success HTTP status.
+     * (no need to merge in terms of success because of no variaty)</p>
+     * 
      * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
      */
     public void derivedSuccessHttpStatus(Function<ActionDocMeta, Integer> oneArgLambda) {
@@ -182,7 +187,7 @@ public class SwaggerOption {
     }
 
     /**
-     * Derive success HTTP status for the execute method by filter.
+     * Derive failure HTTP status for the execute method by filter.
      * <pre>
      * op.derivedFailureHttpStatus(meta -&gt; {
      *     SwaggerFailureHttpStatusResource resource = new SwaggerFailureHttpStatusResource();
@@ -190,6 +195,10 @@ public class SwaggerOption {
      *     return resource;
      * });
      * </pre>
+     * 
+     * <p>These settings are merged with default failure HTTP status.
+     * If you completely override it, also use suppressDefaultFailureHttpStatus().</p>
+     * 
      * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
      */
     public void derivedFailureHttpStatus(Function<ActionDocMeta, SwaggerFailureHttpStatusResource> oneArgLambda) {
@@ -222,6 +231,15 @@ public class SwaggerOption {
         public Map<Integer, List<Class<?>>> getFailureStatusCauseMap() {
             return Collections.unmodifiableMap(failureStatusCauseMap);
         }
+    }
+
+    /**
+     * Suppress default description of failure HTTP status on swagger "responses". <br>
+     * The default is basically LastaFlute HTTP status handling. (e.g. 400, 403, 404) <br>
+     * If you completely override it by derivedFailureHttpStatus(), also use this.
+     */
+    public void suppressDefaultFailureHttpStatus() {
+        defaultFailureHttpStatusSuppressed = true;
     }
 
     // ===================================================================================
@@ -453,6 +471,10 @@ public class SwaggerOption {
         return OptionalThing.ofNullable(failureHttpStatusLambda, () -> {
             throw new IllegalStateException("Not set failureHttpStatusLambda.");
         });
+    }
+
+    public boolean isDefaultFailureHttpStatusSuppressed() {
+        return defaultFailureHttpStatusSuppressed;
     }
 
     // -----------------------------------------------------

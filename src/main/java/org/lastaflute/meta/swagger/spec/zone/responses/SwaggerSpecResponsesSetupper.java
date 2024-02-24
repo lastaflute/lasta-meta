@@ -141,26 +141,41 @@ public class SwaggerSpecResponsesSetupper {
             return;
         }
         // ApiResponse only here, ApiFailureHook returns HTTP status as client error but HtmlResponse not
-        // #for_now jflute is it OK? as swagger-spec (what should we do?) (2021/06/25)
-        Map<Integer, List<Class<?>>> statusCauseMap = swaggerOption.getFailureHttpStatusLambda().map(callback -> {
+        // #for_now done jflute is it OK? as swagger-spec (what should we do?) (2021/06/25)
+        //  => reflecting LastaFlute Behavior and throws response, and merging as default (2024/02/23)
+        final Map<Integer, List<Class<?>>> statusCauseMap = swaggerOption.getFailureHttpStatusLambda().map(callback -> {
             final SwaggerFailureHttpStatusResource resource = callback.apply(actionDocMeta);
             return resource != null ? resource.getFailureStatusCauseMap() : null;
         }).orElseGet(() -> Collections.emptyMap());
-        if (statusCauseMap.isEmpty()) {
-            final int httpStatus = 400; // as default
-            final String description = "client error"; // as default
-            final Map<String, Object> contentMap = newContentMapWithDescription(description);
-            registerResponse(responseMap, httpStatus, contentMap);
-        } else { // specified
-            statusCauseMap.forEach((httpStatus, causeTypeList) -> {
-                final String description = causeTypeList.stream().map(tp -> tp.getSimpleName()).collect(Collectors.joining(", "));
-                final Map<String, Object> contentMap = newContentMapWithDescription(description);
-                registerResponse(responseMap, httpStatus, contentMap);
-            });
+
+        // as default
+        if (!swaggerOption.isDefaultFailureHttpStatusSuppressed()) {
+            setupLastaFluteBehavior(responseMap); // basically as default
         }
 
-        // use failure response information of @throws on method comment
+        // by option
+        statusCauseMap.forEach((httpStatus, causeTypeList) -> {
+            final String description = causeTypeList.stream().map(tp -> tp.getSimpleName()).collect(Collectors.joining(", "));
+            final Map<String, Object> contentMap = newContentMapWithDescription(description);
+            mergeResponse(responseMap, String.valueOf(httpStatus), contentMap);
+        });
+
+        // from javadoc
         reflectThrowsResponse(responseMap, actionDocMeta);
+    }
+
+    // -----------------------------------------------------
+    //                                   LastaFlute Behavior
+    //                                   -------------------
+    protected void setupLastaFluteBehavior(Map<String, Object> responseMap) {
+        // reflect LastaFlute behavior as default
+        doSetupLastaFluteBehavior(responseMap, 400, "Client Error (e.g. Validation Error, Business Error, Broken JSON Format)");
+        doSetupLastaFluteBehavior(responseMap, 403, "Forbidden (e.g. CSRF Forbidden)");
+        doSetupLastaFluteBehavior(responseMap, 404, "Not Found (e.g. Wrong URL)");
+    }
+
+    protected void doSetupLastaFluteBehavior(Map<String, Object> responseMap, int httpStatus, String description) {
+        registerResponse(responseMap, httpStatus, newContentMapWithDescription(description));
     }
 
     // -----------------------------------------------------
@@ -222,7 +237,7 @@ public class SwaggerSpecResponsesSetupper {
                 if (descObj instanceof String) { // basically true, just incase
                     final String existingDescription = (String) descObj;
                     final String additinalDescription = (String) contentMap.get(CONTENT_MAP_KEY_DESCRIPTION);
-                    final String delimiter = "\n :: "; // Swagger UI shows on new line
+                    final String delimiter = getFailureResponseMergingDelimiter(); // Swagger UI shows on new line
                     final String mergedDescription = existingDescription + delimiter + additinalDescription;
                     existingMap.put(CONTENT_MAP_KEY_DESCRIPTION, mergedDescription);
                 }
@@ -232,6 +247,10 @@ public class SwaggerSpecResponsesSetupper {
         } else { // new status
             responseMap.put(statusExp, contentMap);
         }
+    }
+
+    protected String getFailureResponseMergingDelimiter() {
+        return "\n :: ";
     }
 
     // ===================================================================================
