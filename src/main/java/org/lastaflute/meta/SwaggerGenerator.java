@@ -243,7 +243,7 @@ public class SwaggerGenerator {
     // _/_/_/_/_/_/_/_/_/_/
     /**
      * Save swagger meta of action information to swagger.json.
-     * @return The action instance that can handle swagger. (NotNull)
+     * @param swaggerable The action instance that can handle swagger. (NotNull)
      */
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
