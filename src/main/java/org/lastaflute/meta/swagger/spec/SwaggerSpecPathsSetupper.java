@@ -30,6 +30,8 @@ import org.lastaflute.core.json.control.JsonControlMeta;
 import org.lastaflute.core.json.engine.RealJsonEngine;
 import org.lastaflute.di.util.LdiSerializeUtil;
 import org.lastaflute.meta.SwaggerOption;
+import org.lastaflute.meta.SwaggerOption.SwaggerPathDescriptionDeriver;
+import org.lastaflute.meta.SwaggerOption.SwaggerPathSummaryDeriver;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.exception.SwaggerPathSetupFailureException;
@@ -380,10 +382,31 @@ public class SwaggerSpecPathsSetupper {
 
     protected String derivePathSummary(ActionDocMeta actionDocMeta) { // returns null allowed
         // the meta alerady has first-lines description, so use it plainly
-        return actionDocMeta.getDescription(); // null allowed (when no both class and method comment)
+        final String defaultSummary = actionDocMeta.getDescription(); // null allowed (when no both class and method comment)
+        final OptionalThing<SwaggerPathSummaryDeriver> optDeriver = swaggerOption.getPathSummaryDeriver();
+        if (optDeriver.isPresent()) { // by option
+            final SwaggerPathSummaryDeriver deriver = optDeriver.get();
+            return deriver.derive(actionDocMeta, defaultSummary); // null allowed
+        } else { // mainly here
+            return defaultSummary;
+        }
+        // [memo] don't use map().orElse() here
+        // option's derive() may return null and completely override it as null
+        // (if map, orElse() revives it)
     }
 
     protected String derivePathDescription(ActionDocMeta actionDocMeta) { // returns null allowed
+        final String defaultDescription = doDerivePathDescription(actionDocMeta);
+        final OptionalThing<SwaggerPathDescriptionDeriver> optDeriver = swaggerOption.getPathDescriptionDeriver();
+        if (optDeriver.isPresent()) { // by option
+            final SwaggerPathDescriptionDeriver deriver = optDeriver.get();
+            return deriver.derive(actionDocMeta, defaultDescription); // null allowed
+        } else { // mainly here
+            return defaultDescription;
+        }
+    }
+
+    protected String doDerivePathDescription(ActionDocMeta actionDocMeta) {
         final String typeComment = actionDocMeta.getTypeComment(); // null allowed
         final String methodComment = actionDocMeta.getMethodComment(); // null allowed
         final StringBuilder sb = new StringBuilder();

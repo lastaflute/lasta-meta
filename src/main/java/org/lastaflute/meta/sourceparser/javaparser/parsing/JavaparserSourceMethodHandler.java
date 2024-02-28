@@ -82,6 +82,25 @@ public class JavaparserSourceMethodHandler {
     //                                                                        Assist Logic
     //                                                                        ============
     protected List<MethodDeclaration> extractMethodDeclarationList(Class<?> clazz) {
+        // #needs_fix jflute anonymous classes headache (2024/02/28)
+        /*
+        e.g. SwaggerAction
+        op.derivedPathSummary(new SwaggerPathSummaryDeriver() {
+        public String derive(ActionDocReference actionDocReference, String defaultSummary) {
+            return defaultSummary;
+        }
+        });
+        op.derivedPathDescription(new SwaggerPathDescriptionDeriver() {
+        public String derive(ActionDocReference actionDocReference, String defaultDescription) {
+            return defaultDescription;
+        }
+        });
+        
+        java.lang.IllegalStateException: The id was duplicated: id=derive(ActionDocReference, String) orderedUniqueIdList=[index(), json(), derive(ActionDocReference, String), derive(ActionDocReference, String), appjson(), diff(SwaggerDiffForm), targetJson(SwaggerTargetJsonForm), limitedTargetJson(), verifySwaggerAllowed()]
+         at org.dbflute.util.DfCollectionUtil.orderAccordingTo(DfCollectionUtil.java:499)
+         at org.lastaflute.meta.sourceparser.javaparser.parsing.JavaparserSourceMethodHandler.orderMethodListBySource(JavaparserSourceMethodHandler.java:70)
+         at org.lastaflute.meta.sourceparser.javaparser.parsing.JavaparserSourceMethodHandler.getMethodListOrderByDefinition(JavaparserSourceMethodHandler.java:56)
+         */
         List<MethodDeclaration> methodDeclarationList = DfCollectionUtil.newArrayList();
         sourceTypeHandler.parseClass(clazz).ifPresent(compilationUnit -> {
             VoidVisitorAdapter<Void> adapter = new VoidVisitorAdapter<Void>() {

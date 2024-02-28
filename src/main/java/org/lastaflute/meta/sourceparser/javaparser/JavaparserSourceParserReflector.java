@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -43,6 +44,7 @@ import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithJavadoc;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
+import com.github.javaparser.javadoc.Javadoc;
 
 /**
  * @author p1us2er0
@@ -54,7 +56,10 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     // ===================================================================================
     //                                                                          Definition
     //                                                                          ==========
+    /** to pick up first line from javadoc comment of class and method. (NotNull) */
     protected static final Pattern CLASS_METHOD_COMMENT_END_PATTERN = Pattern.compile("(.+)[.。]?.*(\r?\n)?");
+
+    /** to pick up first statement (line) from javadoc comment of field. (NotNull) */
     protected static final Pattern FIELD_COMMENT_END_PATTERN = Pattern.compile("([^.。\\*]+).* ?\\*?");
 
     // ===================================================================================
@@ -100,35 +105,52 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     @Override
     public void reflect(ActionDocMeta meta, Method method) {
         parseClass(method.getDeclaringClass()).ifPresent(compilationUnit -> {
-            Map<String, List<String>> returnMap = DfCollectionUtil.newLinkedHashMap();
-            VoidVisitorAdapter<ActionDocMeta> adapter = createActionDocMetaVisitorAdapter(method, returnMap);
-            adapter.visit(compilationUnit, meta);
-            List<String> descriptionList = DfCollectionUtil.newArrayList();
-            Arrays.asList(meta.getTypeComment(), meta.getMethodComment()).forEach(comment -> {
-                if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
-                    Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
-                    if (matcher.find()) {
-                        descriptionList.add(matcher.group(1));
-                    }
-                }
-            });
-            if (!descriptionList.isEmpty()) {
-                meta.setDescription(String.join(", ", descriptionList));
+            final Map<String, List<String>> returnMap = DfCollectionUtil.newLinkedHashMap();
+
+            // you need to execute this before the setting process
+            readActionDocSourceDrivenMetaByJavaparser(meta, method, compilationUnit, returnMap);
+
+            // prepare description (summary-like)
+            final List<String> descriptionElementList = extractDescriptionElementList(meta, method, compilationUnit, returnMap);
+            if (!descriptionElementList.isEmpty()) {
+                final String summarylikeDescription = String.join(", ", descriptionElementList);
+                meta.setDescription(summarylikeDescription);
             }
-            List<TypeDocMeta> parameterTypeDocMetaList = meta.getParameterTypeDocMetaList();
-            Parameter[] parameters = method.getParameters();
+
+            // resolve parameter names of reflection by actual variable names
+            final List<TypeDocMeta> parameterTypeDocMetaList = meta.getParameterTypeDocMetaList();
+            final Parameter[] parameters = method.getParameters(); // method arguments
             for (int parameterIndex = 0; parameterIndex < parameters.length; parameterIndex++) {
                 if (parameterIndex < parameterTypeDocMetaList.size()) {
-                    Parameter parameter = parameters[parameterIndex];
-                    TypeDocMeta typeDocMeta = parameterTypeDocMetaList.get(parameterIndex);
-                    meta.setUrl(meta.getUrl().replace("{" + parameter.getName() + "}", "{" + typeDocMeta.getName() + "}"));
+                    final Parameter parameter = parameters[parameterIndex];
+                    final TypeDocMeta typeDocMeta = parameterTypeDocMetaList.get(parameterIndex);
+                    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+                    // /products/{arg0}/purchases/{arg1}/showbase-oneman/
+                    //  ↓↓↓
+                    // /products/{productId}/purchases/{purchaseId}/showbase-oneman/
+                    // _/_/_/_/_/_/_/_/_/_/
+                    final String plainUrl = meta.getUrl();
+                    final String resolvedUrl = plainUrl.replace("{" + parameter.getName() + "}", "{" + typeDocMeta.getName() + "}");
+                    meta.setUrl(resolvedUrl);
                 }
             }
-            String methodName = method.getName();
+
+            // prepare return statement information
+            final String methodName = method.getName();
             if (returnMap.containsKey(methodName) && !returnMap.get(methodName).isEmpty()) {
-                meta.getReturnTypeDocMeta().setValue(String.join(",", returnMap.get(methodName)));
+                String returnExp = String.join(",", returnMap.get(methodName)); // e.g. asJson(listResult)
+                meta.getReturnTypeDocMeta().setValue(returnExp);
             }
         });
+    }
+
+    // -----------------------------------------------------
+    //                                      SourceDrive Meta
+    //                                      ----------------
+    protected void readActionDocSourceDrivenMetaByJavaparser(ActionDocMeta meta, Method method, CompilationUnit compilationUnit,
+            Map<String, List<String>> returnMap) {
+        final VoidVisitorAdapter<ActionDocMeta> adapter = createActionDocMetaVisitorAdapter(method, returnMap);
+        adapter.visit(compilationUnit, meta);
     }
 
     protected VoidVisitorAdapter<ActionDocMeta> createActionDocMetaVisitorAdapter(Method method, Map<String, List<String>> returnMap) {
@@ -137,11 +159,32 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
         }, methodIdentityDeterminer);
     }
 
+    // -----------------------------------------------------
+    //                                           Description
+    //                                           -----------
+    protected List<String> extractDescriptionElementList(ActionDocMeta meta, Method method, CompilationUnit compilationUnit,
+            Map<String, List<String>> returnMap) {
+        final List<String> descriptionElementList = DfCollectionUtil.newArrayList();
+        final String typeComment = meta.getTypeComment(); // class javadoc, null allowed
+        final String methodComment = meta.getMethodComment(); // execute method javadoc, null allowed
+        Arrays.asList(typeComment, methodComment).forEach(comment -> {
+            if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
+                final Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
+                if (matcher.find()) {
+                    final String fisrtLine = matcher.group(1); // first line
+                    descriptionElementList.add(fisrtLine);
+                }
+            }
+        });
+        return descriptionElementList; // class javadoc first line + method javadoc first line
+    }
+
     // ===================================================================================
     //                                                                  Reflect JobDocMeta
     //                                                                  ==================
     @Override
     public void reflect(JobDocMeta jobDocMeta, Class<?> clazz) {
+        // #needs_fix jflute wants to refactor JobDocMeta (2024/02/21)
         parseClass(clazz).ifPresent(compilationUnit -> {
             VoidVisitorAdapter<JobDocMeta> adapter = createJobDocMetaVisitorAdapter();
             adapter.visit(compilationUnit, jobDocMeta);
@@ -241,10 +284,10 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
         protected void prepareClassComment(ClassOrInterfaceDeclaration classOrInterfaceDeclaration, TypeDocMeta typeDocMeta) {
             if (DfStringUtil.is_Null_or_Empty(typeDocMeta.getComment())
                     && classOrInterfaceDeclaration.getNameAsString().equals(typeDocMeta.getSimpleTypeName())) {
-                String comment = adjustComment(classOrInterfaceDeclaration);
+                final String comment = adjustComment(classOrInterfaceDeclaration);
                 if (DfStringUtil.is_NotNull_and_NotEmpty(comment)) {
                     typeDocMeta.setComment(comment);
-                    Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
+                    final Matcher matcher = CLASS_METHOD_COMMENT_END_PATTERN.matcher(comment);
                     if (matcher.find()) {
                         typeDocMeta.setDescription(matcher.group(1));
                     }
@@ -292,7 +335,20 @@ public class JavaparserSourceParserReflector implements SourceParserReflector {
     //                                                                      ==============
     protected String adjustComment(NodeWithJavadoc<?> nodeWithJavadoc) {
         try {
-            return nodeWithJavadoc.getJavadoc().map(javadoc -> javadoc.toText().replaceAll("(^\r?\n|\r?\n$)", "")).orElse(null);
+            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+            // remove first/last line separators
+            //
+            // e.g.
+            //  (first line separators)
+            //  @param <DATA> The type of data form.
+            //  @author jflute
+            //  (last line separators)
+            //   ↓↓↓
+            //  @param <DATA> The type of data form.
+            //  @author jflute
+            // _/_/_/_/_/_/_/_/_/_/
+            final Optional<Javadoc> optJavadoc = nodeWithJavadoc.getJavadoc();
+            return optJavadoc.map(javadoc -> javadoc.toText().replaceAll("(^\r?\n|\r?\n$)", "")).orElse(null);
         } catch (Throwable t) {
             return "javadoc parse error. error messge=" + t.getMessage();
         }
