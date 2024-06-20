@@ -13,7 +13,7 @@
 	<inceptionYear>2015</inceptionYear>
 
 	<properties>
-		<lastaflute.version>1.2.4</lastaflute.version> <!-- about one year old (from now) -->
+		<lastaflute.version>1.2.6</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.6</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
 		<javaparser.version>3.25.8</javaparser.version>
