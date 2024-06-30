@@ -16,7 +16,7 @@
 		<lastaflute.version>1.2.6</lastaflute.version> <!-- about one year old (from now) -->
 		<lasta.job.version>0.5.6</lasta.job.version>
 		<servlet.version>3.1.0</servlet.version>
-		<javaparser.version>3.26.0</javaparser.version>
+		<javaparser.version>3.26.1</javaparser.version>
 		<openapidiff.version>2.0.1</openapidiff.version>
 		<utflute.version>0.9.6</utflute.version>
 	</properties>
