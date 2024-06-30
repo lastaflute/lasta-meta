@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 the original author or authors.
+ * Copyright 2015-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 
 import org.lastaflute.core.util.Lato;
+import org.lastaflute.meta.document.docmeta.reference.ActionDocReference;
 import org.lastaflute.web.ruts.config.ActionExecute;
 
 /**
@@ -27,7 +28,7 @@ import org.lastaflute.web.ruts.config.ActionExecute;
  * @author jflute
  * @since 0.5.0-sp9 (2015/09/18 Friday)
  */
-public class ActionDocMeta {
+public class ActionDocMeta implements ActionDocReference {
 
     // ===================================================================================
     //                                                                           Attribute
@@ -51,7 +52,16 @@ public class ActionDocMeta {
     /** The simple name of type declaring the execute method. e.g. "SeaAction" (NotNull: after setup) */
     private String simpleTypeName;
 
-    /** The whole comment about action method, e.g. class javadoc + method javadoc. (NullAllowed: depends on java parser) */
+    // #hope jflute rename "description" to "summary" as possible (2024/02/13)
+    // but no change to keep compatible to old DBFlute version
+    /**
+     * The summary-like comment about action method,
+     * e.g. class javadoc first line + method javadoc first line.
+     * (NullAllowed: depends on java parser)
+     * 
+     * <p>This is not same as swagger's "description".
+     * (was same when old versions)</p>
+     */
     private String description; // basically extracted by java parser
 
     /** The javadoc of Action class. (NullAllowed: depends on java parser) */

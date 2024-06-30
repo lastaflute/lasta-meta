@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 the original author or authors.
+ * Copyright 2015-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.util.Lato;
 import org.lastaflute.meta.document.docmeta.ActionDocMeta;
+import org.lastaflute.meta.document.docmeta.reference.ActionDocReference;
 import org.lastaflute.web.api.BusinessFailureMapping;
 
 /**
@@ -35,6 +36,11 @@ import org.lastaflute.web.api.BusinessFailureMapping;
  * @author jflute
  */
 public class SwaggerOption {
+
+    // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+    // #for_now jflute derivedXxx() means deriveXxx() but keep compatible and uniformed (2024/02/22)
+    // #hope jflute use ActionDocReference (read-only interface) instead of ActionDocMeta (2024/02/22)
+    // _/_/_/_/_/_/_/_/_/_/
 
     // ===================================================================================
     //                                                                           Attribute
@@ -46,17 +52,28 @@ public class SwaggerOption {
     protected Supplier<String> applicationVersionOnUrlLambda; // null allowed
 
     // -----------------------------------------------------
-    //                                              Document
-    //                                              --------
+    //                                            Meta Infra
+    //                                            ----------
     protected Consumer<List<String>> additionalSourceDirectoriesLambda; // null allowed
 
     // -----------------------------------------------------
-    //                                                Action
-    //                                                ------
-    protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda; // null allowed
+    //                                       Action Handling
+    //                                       ---------------
     protected Predicate<ActionDocMeta> targetActionDocMetaLambda; // null allowed
+
+    // -----------------------------------------------------
+    //                                         HTTP Handling
+    //                                         -------------
+    protected Function<ActionDocMeta, String> defaultFormHttpMethodLambda; // null allowed
     protected Function<ActionDocMeta, Integer> successHttpStatusLambda; // null allowed
     protected Function<ActionDocMeta, SwaggerFailureHttpStatusResource> failureHttpStatusLambda; // null allowed
+    protected boolean defaultFailureHttpStatusSuppressed;
+
+    // -----------------------------------------------------
+    //                                             Path Item
+    //                                             ---------
+    protected SwaggerPathSummaryDeriver pathSummaryDeriver; // null allowed
+    protected SwaggerPathDescriptionDeriver pathDescriptionDeriver; // null allowed
 
     // -----------------------------------------------------
     //                                                Header
@@ -94,8 +111,11 @@ public class SwaggerOption {
     }
 
     // ===================================================================================
-    //                                                                            Document
-    //                                                                            ========
+    //                                                                          Meta Infra
+    //                                                                          ==========
+    // -----------------------------------------------------
+    //                                      Source Directory
+    //                                      ----------------
     /**
      * Register additional source directories to parse for swagger. <br>
      * Basically the path is supposed to be relative from your project root.
@@ -109,8 +129,27 @@ public class SwaggerOption {
     }
 
     // ===================================================================================
-    //                                                                              Action
-    //                                                                              ======
+    //                                                                     Action Handling
+    //                                                                     ===============
+    // -----------------------------------------------------
+    //                                         Action Target
+    //                                         -------------
+    /**
+     * Derive action execute that can be target for swagger-spec by filter.
+     * <pre>
+     * op.derivedTargetActionDocMeta(meta -&gt; {
+     *     return ...; // true if the action execute is target
+     * });
+     * </pre>
+     * @param oneArgLambda The callback of target to determine it. (NotNull)
+     */
+    public void derivedTargetActionDocMeta(Predicate<ActionDocMeta> oneArgLambda) {
+        this.targetActionDocMetaLambda = oneArgLambda;
+    }
+
+    // ===================================================================================
+    //                                                                       HTTP Handling
+    //                                                                       =============
     // -----------------------------------------------------
     //                                      Form HTTP Method
     //                                      ----------------
@@ -128,22 +167,6 @@ public class SwaggerOption {
     }
 
     // -----------------------------------------------------
-    //                                         Action Target
-    //                                         -------------
-    /**
-     * Derive action execute that can be target for swagger-spec by filter.
-     * <pre>
-     * op.derivedTargetActionDocMeta(meta -&gt; {
-     *     return ...; // true if the action execute is target
-     * });
-     * </pre>
-     * @param oneArgLambda The callback of target to determine it. (NotNull)
-     */
-    public void derivedTargetActionDocMeta(Predicate<ActionDocMeta> oneArgLambda) {
-        this.targetActionDocMetaLambda = oneArgLambda;
-    }
-
-    // -----------------------------------------------------
     //                                           HTTP Status
     //                                           -----------
     /**
@@ -153,6 +176,10 @@ public class SwaggerOption {
      *     return ...; // e.g. 200 or 201 or 204
      * });
      * </pre>
+     * 
+     * <p>These settings override default success HTTP status.
+     * (no need to merge in terms of success because of no variaty)</p>
+     * 
      * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
      */
     public void derivedSuccessHttpStatus(Function<ActionDocMeta, Integer> oneArgLambda) {
@@ -160,7 +187,7 @@ public class SwaggerOption {
     }
 
     /**
-     * Derive success HTTP status for the execute method by filter.
+     * Derive failure HTTP status for the execute method by filter.
      * <pre>
      * op.derivedFailureHttpStatus(meta -&gt; {
      *     SwaggerFailureHttpStatusResource resource = new SwaggerFailureHttpStatusResource();
@@ -168,6 +195,10 @@ public class SwaggerOption {
      *     return resource;
      * });
      * </pre>
+     * 
+     * <p>These settings are merged with default failure HTTP status.
+     * If you completely override it, also use suppressDefaultFailureHttpStatus().</p>
+     * 
      * @param oneArgLambda The callback of HTTP status deriving, returning null means no filter. (NotNull)
      */
     public void derivedFailureHttpStatus(Function<ActionDocMeta, SwaggerFailureHttpStatusResource> oneArgLambda) {
@@ -202,9 +233,79 @@ public class SwaggerOption {
         }
     }
 
+    /**
+     * Suppress default description of failure HTTP status on swagger "responses". <br>
+     * The default is basically LastaFlute HTTP status handling. (e.g. 400, 403, 404) <br>
+     * If you completely override it by derivedFailureHttpStatus(), also use this.
+     */
+    public void suppressDefaultFailureHttpStatus() {
+        defaultFailureHttpStatusSuppressed = true;
+    }
+
     // ===================================================================================
-    //                                                                    Header Parameter
-    //                                                                    ================
+    //                                                                           Path Item
+    //                                                                           =========
+    // -----------------------------------------------------
+    //                                          Path Summary
+    //                                          ------------
+    /**
+     * Derive path summary to fit your requirement.
+     * <pre>
+     * op.derivePathSummary((actionDocReference, defaultSummary) -&gt; {
+     *     return ... // filtering defaultSummary
+     * });
+     * </pre>
+     * @param pathSummaryDeriver The callback to derive path summary. (NotNull)
+     */
+    public void derivedPathSummary(SwaggerPathSummaryDeriver pathSummaryDeriver) {
+        this.pathSummaryDeriver = pathSummaryDeriver;
+    }
+
+    /**
+     * @author jflute
+     */
+    public static interface SwaggerPathSummaryDeriver {
+
+        /**
+         * @param actionDocReference The doc reference of current action, basically read-only. (NotNull)
+         * @param defaultSummary The swagger's "summary" of the action as default. (NullAllowed) 
+         * @return The new derived summary by your process. (NullAllowed: if null, means no summary)
+         */
+        String derive(ActionDocReference actionDocReference, String defaultSummary);
+    }
+
+    // -----------------------------------------------------
+    //                                      Path Description
+    //                                      ----------------
+    /**
+     * Derive path description to fit your requirement.
+     * <pre>
+     * op.switchPathDescription((actionDocReference, defaultDescription) -&gt; {
+     *     return ... // filtering defaultDescription
+     * });
+     * </pre>
+     * @param pathDescriptionDeriver The callback to derive path description. (NotNull)
+     */
+    public void derivedPathDescription(SwaggerPathDescriptionDeriver pathDescriptionDeriver) {
+        this.pathDescriptionDeriver = pathDescriptionDeriver;
+    }
+
+    /**
+     * @author jflute
+     */
+    public static interface SwaggerPathDescriptionDeriver {
+
+        /**
+         * @param actionDocReference The doc reference of current action, basically read-only. (NotNull)
+         * @param defaultDescription The swagger's "description" of the action as default. (NullAllowed) 
+         * @return The new derived description by your process. (NullAllowed: if null, means no summary)
+         */
+        String derive(ActionDocReference actionDocReference, String defaultDescription);
+    }
+
+    // ===================================================================================
+    //                                                                              Header
+    //                                                                              ======
     public void addHeaderParameter(String name, String value) {
         if (headerParameterList == null) {
             headerParameterList = DfCollectionUtil.newArrayList();
@@ -255,8 +356,8 @@ public class SwaggerOption {
     }
 
     // ===================================================================================
-    //                                                                 Security Definition
-    //                                                                 ===================
+    //                                                                            Security
+    //                                                                            ========
     public void addSecurityDefinition(String name) {
         if (securityDefinitionList == null) {
             securityDefinitionList = DfCollectionUtil.newArrayList();
@@ -331,8 +432,8 @@ public class SwaggerOption {
     }
 
     // -----------------------------------------------------
-    //                                              Document
-    //                                              --------
+    //                                            Meta Infra
+    //                                            ----------
     public OptionalThing<Consumer<List<String>>> getAdditionalSourceDirectories() {
         return OptionalThing.ofNullable(additionalSourceDirectoriesLambda, () -> {
             throw new IllegalStateException("Not set additionalSourceDirectoriesLambda.");
@@ -340,21 +441,24 @@ public class SwaggerOption {
     }
 
     // -----------------------------------------------------
-    //                                                Action
-    //                                                ------
+    //                                       Action Handling
+    //                                       ---------------
+    public Predicate<ActionDocMeta> getTargetActionDocMeta() {
+        if (targetActionDocMetaLambda == null) {
+            return (actionDocMeta) -> true;
+        }
+        return targetActionDocMetaLambda;
+    }
+
+    // -----------------------------------------------------
+    //                                         HTTP Handling
+    //                                         -------------
     public Function<ActionDocMeta, String> getDefaultFormHttpMethod() {
         if (defaultFormHttpMethodLambda == null) {
             // #hope jflute move this default logic to setupper (2021/06/25)
             return meta -> "get"; // as default
         }
         return defaultFormHttpMethodLambda;
-    }
-
-    public Predicate<ActionDocMeta> getTargetActionDocMeta() {
-        if (targetActionDocMetaLambda == null) {
-            return (actionDocMeta) -> true;
-        }
-        return targetActionDocMetaLambda;
     }
 
     public OptionalThing<Function<ActionDocMeta, Integer>> getSuccessHttpStatusLambda() {
@@ -366,6 +470,25 @@ public class SwaggerOption {
     public OptionalThing<Function<ActionDocMeta, SwaggerFailureHttpStatusResource>> getFailureHttpStatusLambda() {
         return OptionalThing.ofNullable(failureHttpStatusLambda, () -> {
             throw new IllegalStateException("Not set failureHttpStatusLambda.");
+        });
+    }
+
+    public boolean isDefaultFailureHttpStatusSuppressed() {
+        return defaultFailureHttpStatusSuppressed;
+    }
+
+    // -----------------------------------------------------
+    //                                             Path Item
+    //                                             ---------
+    public OptionalThing<SwaggerPathSummaryDeriver> getPathSummaryDeriver() {
+        return OptionalThing.ofNullable(pathSummaryDeriver, () -> {
+            throw new IllegalStateException("Not found the pathSummaryDeriver.");
+        });
+    }
+
+    public OptionalThing<SwaggerPathDescriptionDeriver> getPathDescriptionDeriver() {
+        return OptionalThing.ofNullable(pathDescriptionDeriver, () -> {
+            throw new IllegalStateException("Not found the pathDescriptionDeriver.");
         });
     }
 

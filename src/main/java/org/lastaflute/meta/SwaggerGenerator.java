@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 the original author or authors.
+ * Copyright 2015-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -243,7 +243,7 @@ public class SwaggerGenerator {
     // _/_/_/_/_/_/_/_/_/_/
     /**
      * Save swagger meta of action information to swagger.json.
-     * @return The action instance that can handle swagger. (NotNull)
+     * @param swaggerable The action instance that can handle swagger. (NotNull)
      */
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
