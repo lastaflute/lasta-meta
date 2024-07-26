@@ -8,7 +8,7 @@
 	<packaging>jar</packaging>
 
 	<name>lasta-meta</name>
-	<description>LastaMeta library</description>
+	<description>The engine library to handle metadata of LastaFlute for e.g. LastaDoc, Swagger</description>
 	<url>http://dbflute.org/lastaflute</url>
 	<inceptionYear>2015</inceptionYear>
 
@@ -255,7 +255,7 @@
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<version>1.1.3</version>
+			<version>1.2.13</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
