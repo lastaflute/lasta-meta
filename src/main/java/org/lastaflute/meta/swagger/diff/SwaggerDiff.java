@@ -21,7 +21,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.function.Consumer;
@@ -230,14 +231,16 @@ public class SwaggerDiff {
     protected InputStream getInputStream(String location) {
         try {
             if (location.contains(":")) {
-                return new URL(location).openStream();
+                // new URL(...) will be deprecated since java20 so changed it
+                //return new URL(location).openStream();
+                return new URI(location).toURL().openStream();
             }
             final InputStream inputStream = getClass().getResourceAsStream(location);
             if (inputStream != null) {
                 return inputStream;
             }
             return new FileInputStream(location);
-        } catch (IOException e) {
+        } catch (URISyntaxException | IOException e) {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
             br.addNotice("Failed to read location");
             br.addItem("location");
