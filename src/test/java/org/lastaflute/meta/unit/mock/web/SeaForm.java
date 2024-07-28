@@ -15,10 +15,10 @@
  */
 package org.lastaflute.meta.unit.mock.web;
 
-import javax.validation.Valid;
-
 import org.hibernate.validator.constraints.Length;
 import org.lastaflute.web.validation.Required;
+
+import jakarta.validation.Valid;
 
 /**
  * @author jflute

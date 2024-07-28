@@ -20,13 +20,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.direction.AccessibleConfig;
 import org.lastaflute.meta.SwaggerOption;
 import org.lastaflute.meta.infra.maven.MavenVersionFinder;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * @author p1us2er0

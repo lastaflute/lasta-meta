@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.dbflute.optional.OptionalThing;
 import org.lastaflute.core.direction.AccessibleConfig;
 import org.lastaflute.core.json.control.JsonControlMeta;
@@ -40,6 +38,8 @@ import org.lastaflute.meta.swagger.spec.SwaggerSpecPathsSetupper;
 import org.lastaflute.meta.swagger.web.LaActionSwaggerable;
 import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.util.LaRequestUtil;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * @author p1us2er0
