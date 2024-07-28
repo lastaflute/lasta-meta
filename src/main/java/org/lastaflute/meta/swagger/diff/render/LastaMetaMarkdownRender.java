@@ -1,5 +1,6 @@
 package org.lastaflute.meta.swagger.diff.render;
 
+import java.io.OutputStreamWriter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,19 +19,21 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 
 /**
  * @author p1us2er0
+ * @author jflute
  */
 public class LastaMetaMarkdownRender extends MarkdownRender {
-	
-	public LastaMetaMarkdownRender() {
-		super();
-		setShowChangedMetadata(true);
-	}
 
-	@Override
-    protected String listEndpoints(List<ChangedOperation> changedOperations) {
-        if (null == changedOperations || changedOperations.isEmpty()) {
-            return "";
-        }
+    public LastaMetaMarkdownRender() {
+        super();
+        setShowChangedMetadata(true);
+    }
+
+    @Override
+    protected void listEndpoints(List<ChangedOperation> changedOperations, OutputStreamWriter outputStreamWriter) {
+        // #opendiffapi2.1 unneeded? by change to writer way
+        //if (null == changedOperations || changedOperations.isEmpty()) {
+        //    return "";
+        //}
         StringBuilder sb = new StringBuilder();
         changedOperations.stream().map(operation -> {
             StringBuilder details = new StringBuilder();
@@ -47,10 +50,10 @@ public class LastaMetaMarkdownRender extends MarkdownRender {
                 RequestBody oldRequestBody = operation.getRequestBody().getOldRequestBody();
                 RequestBody newRequestBody = operation.getRequestBody().getNewRequestBody();
                 if (oldRequestBody != null && newRequestBody != null && oldRequestBody.getRequired() != newRequestBody.getRequired()) {
-                	ChangedMetadata changedMetadata = new ChangedMetadata();
-                	changedMetadata.setLeft(Objects.toString(oldRequestBody.getRequired()));
-                	changedMetadata.setRight(Objects.toString(newRequestBody.getRequired()));
-                	details.append(metadata("Required", changedMetadata));
+                    ChangedMetadata changedMetadata = new ChangedMetadata();
+                    changedMetadata.setLeft(Objects.toString(oldRequestBody.getRequired()));
+                    changedMetadata.setRight(Objects.toString(newRequestBody.getRequired()));
+                    details.append(metadata("Required", changedMetadata));
                 }
             }
             if (operation.resultApiResponses().isDifferent()) {
@@ -64,7 +67,7 @@ public class LastaMetaMarkdownRender extends MarkdownRender {
         if (sb.length() != 0) {
             sb.insert(0, sectionTitle("What's Changed"));
         }
-        return sb.toString();
+        safelyAppend(outputStreamWriter, sb.toString()); // #opendiffapi2.1
     }
 
     @Override
@@ -97,11 +100,10 @@ public class LastaMetaMarkdownRender extends MarkdownRender {
         if (param.getSchema() != null && !Objects.equals(oldParam.getSchema().getFormat(), newParam.getSchema().getFormat())) {
             map.put("format", oldParam.getSchema().getFormat() + " -> " + newParam.getSchema().getFormat());
         }
-        return itemParameter("Changed", newParam.getName(), newParam.getIn(),
-                map.isEmpty() ? newParam.getDescription() : map.toString());
+        return itemParameter("Changed", newParam.getName(), newParam.getIn(), map.isEmpty() ? newParam.getDescription() : map.toString());
     }
 
-	@Override
+    @Override
     protected String property(int deepness, String name, ChangedSchema schema) {
         if (schema.isChanged().isUnchanged()) {
             return "";
@@ -127,7 +129,7 @@ public class LastaMetaMarkdownRender extends MarkdownRender {
         return sb.toString();
     }
 
-	@Override
+    @Override
     protected String items(int deepness, ChangedSchema schema) {
         StringBuilder sb = new StringBuilder();
         String type = type(schema.getNewSchema());
@@ -140,6 +142,6 @@ public class LastaMetaMarkdownRender extends MarkdownRender {
         }
         sb.append(items(deepness, "Changed items", type, map.isEmpty() ? schema.getNewSchema().getDescription() : map.toString()));
         sb.append(schema(deepness, schema));
-		return sb.toString();
-	}
+        return sb.toString();
+    }
 }

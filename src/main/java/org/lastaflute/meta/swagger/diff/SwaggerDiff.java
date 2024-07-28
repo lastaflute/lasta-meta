@@ -15,10 +15,12 @@
  */
 package org.lastaflute.meta.swagger.diff;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
@@ -85,7 +87,7 @@ public class SwaggerDiff {
     public String diffFromLocations(String leftSwaggerLocation, String rightSwaggerLocation) {
         try {
             final ChangedOpenApi changedOpenApi = doDiffFromLocationsInChangedOpenApi(leftSwaggerLocation, rightSwaggerLocation);
-            return swaggerDiffOption.getDiffResultRender().render(changedOpenApi);
+            return renderDiff(changedOpenApi);
         } catch (RuntimeException e) {
             final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
             br.addNotice("Failed to diff the swagger files.");
@@ -99,9 +101,24 @@ public class SwaggerDiff {
     }
 
     public String diffFromContents(String leftSwaggerContent, String rightSwaggerContent) {
-        ChangedOpenApi changedOpenApi = diffFromContentsInChangedOpenApi(leftSwaggerContent, rightSwaggerContent);
-        String value = swaggerDiffOption.getDiffResultRender().render(changedOpenApi);
-        return value;
+        final ChangedOpenApi changedOpenApi = diffFromContentsInChangedOpenApi(leftSwaggerContent, rightSwaggerContent);
+        return renderDiff(changedOpenApi);
+    }
+
+    protected String renderDiff(ChangedOpenApi changedOpenApi) { // #opendiffapi2.1
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        final OutputStreamWriter outputStreamWriter = new OutputStreamWriter(byteStream);
+        swaggerDiffOption.getDiffResultRender().render(changedOpenApi, outputStreamWriter);
+        try {
+            return byteStream.toString("UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            final ExceptionMessageBuilder br = new ExceptionMessageBuilder();
+            br.addNotice("Failed to convert the byte stream to string.");
+            br.addItem("changedOpenApi");
+            br.addElement(changedOpenApi);
+            final String msg = br.buildExceptionMessage();
+            throw new IllegalStateException(msg, e);
+        }
     }
 
     // -----------------------------------------------------
