@@ -183,7 +183,7 @@ public class SwaggerSpecCreator {
                 }
                 final Object parameters = pathDataMap.get(key);
                 if (parameters instanceof List<?>) {
-                    @SuppressWarnings("all")
+                    @SuppressWarnings("unchecked")
                     final List<Object> parameterList = (List<Object>) parameters;
                     parameterList.add(headerParameter);
                 }
