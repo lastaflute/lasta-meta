@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.dbflute.bhv.BehaviorReadable;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.util.ContainerUtil;
@@ -32,6 +31,7 @@ import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 import org.lastaflute.meta.document.parts.action.ExecuteMethodCollector;
 import org.lastaflute.meta.document.parts.action.FormFieldNameAdjuster;
 import org.lastaflute.meta.document.parts.type.NativeDataTypeProvider;
+import org.lastaflute.meta.document.parts.type.TypeParsingDeterminer;
 import org.lastaflute.meta.document.zone.formtype.ExecuteFormTypeAnalyzer;
 import org.lastaflute.meta.document.zone.parameter.ExecuteParameterAnalyzer;
 import org.lastaflute.meta.document.zone.returntype.ExecuteReturnTypeAnalyzer;
@@ -64,9 +64,11 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     // -----------------------------------------------------
     //                                                 Parts
     //                                                 -----
+    // these are not null
     protected final MetauseJsonEngineProvider metauseJsonEngineProvider;
     protected final NativeDataTypeProvider nativeDataTypeProvider;
     protected final FormFieldNameAdjuster formFieldNameAdjuster;
+    protected final TypeParsingDeterminer typeParsingDeterminer;
 
     // ===================================================================================
     //                                                                         Constructor
@@ -80,6 +82,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         this.metauseJsonEngineProvider = newMetauseJsonEngineProvider();
         this.nativeDataTypeProvider = newDataNativeTypeProvider();
         this.formFieldNameAdjuster = newFormFieldNameAdjuster(metauseJsonEngineProvider);
+        this.typeParsingDeterminer = newTypeParsingDeterminer();
     }
 
     protected MetauseJsonEngineProvider newMetauseJsonEngineProvider() {
@@ -92,6 +95,10 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
 
     protected FormFieldNameAdjuster newFormFieldNameAdjuster(MetauseJsonEngineProvider metauseJsonEngineProvider) {
         return new FormFieldNameAdjuster(metauseJsonEngineProvider);
+    }
+
+    protected TypeParsingDeterminer newTypeParsingDeterminer() {
+        return new TypeParsingDeterminer();
     }
 
     // ===================================================================================
@@ -192,7 +199,7 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
             typeDocMeta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
             typeDocMeta.setAnnotationList(arrangeAnnotationList(typeDocMeta.getAnnotationTypeList()));
 
-            if (needsFieldTypeComment(field)) {
+            if (needsFieldTypeParsingComment(field)) {
                 // parse the class file to get comment and description of the field type
                 // see TypeDocMetaVisitorAdapter class
                 sourceParserReflector.ifPresent(sourceParserReflector -> {
@@ -203,16 +210,8 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
         }).collect(Collectors.toList()));
     }
 
-    protected boolean needsFieldTypeComment(Field field) {
-        if (BehaviorReadable.class.isAssignableFrom(field.getType())) {
-            // to avoid caching Behavior's all meta data
-            // originally, comment and description for DI field of Behavior are unused
-            // so fixedly skip it
-            // // JavaparserSourceTypeHandler, cache big memory problem
-            // https://github.com/lastaflute/lasta-meta/issues/24
-            return false;
-        }
-        return true;
+    protected boolean needsFieldTypeParsingComment(Field field) {
+        return typeParsingDeterminer.needsFieldTypeParsingComment(field);
     }
 
     // -----------------------------------------------------

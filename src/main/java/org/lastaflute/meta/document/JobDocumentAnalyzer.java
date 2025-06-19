@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.dbflute.bhv.BehaviorReadable;
 import org.dbflute.helper.message.ExceptionMessageBuilder;
 import org.dbflute.optional.OptionalThing;
 import org.lastaflute.core.util.ContainerUtil;
@@ -31,6 +30,7 @@ import org.lastaflute.job.LaJob;
 import org.lastaflute.job.LaScheduledJob;
 import org.lastaflute.meta.document.docmeta.JobDocMeta;
 import org.lastaflute.meta.document.docmeta.TypeDocMeta;
+import org.lastaflute.meta.document.parts.type.TypeParsingDeterminer;
 import org.lastaflute.meta.sourceparser.SourceParserReflector;
 
 /**
@@ -52,6 +52,12 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
     /** The optional reflector of source parser, e.g. java parser. (NotNull, EmptyAllowed) */
     protected final OptionalThing<SourceParserReflector> sourceParserReflector;
 
+    // -----------------------------------------------------
+    //                                                 Parts
+    //                                                 -----
+    // not null
+    protected final TypeParsingDeterminer typeParsingDeterminer;
+
     // ===================================================================================
     //                                                                         Constructor
     //                                                                         ===========
@@ -59,6 +65,13 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
         this.srcDirList = srcDirList;
         this.depth = depth;
         this.sourceParserReflector = sourceParserReflector;
+
+        // parts
+        this.typeParsingDeterminer = newTypeParsingDeterminer();
+    }
+
+    protected TypeParsingDeterminer newTypeParsingDeterminer() {
+        return new TypeParsingDeterminer();
     }
 
     // ===================================================================================
@@ -151,7 +164,7 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
                 typeDocMeta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
                 typeDocMeta.setAnnotationList(arrangeAnnotationList(typeDocMeta.getAnnotationTypeList()));
 
-                if (needsFieldTypeComment(field)) {
+                if (needsFieldTypeParsingComment(field)) {
                     sourceParserReflector.ifPresent(sourceParserReflector -> {
                         sourceParserReflector.reflect(typeDocMeta, field.getType());
                     });
@@ -176,11 +189,8 @@ public class JobDocumentAnalyzer extends BaseDocumentAnalyzer {
         return jobDocMeta;
     }
 
-    protected boolean needsFieldTypeComment(Field field) {
-        if (BehaviorReadable.class.isAssignableFrom(field.getType())) {
-            return false; // see ActionDocumentAnalyzer for the detail
-        }
-        return true;
+    protected boolean needsFieldTypeParsingComment(Field field) {
+        return typeParsingDeterminer.needsFieldTypeParsingComment(field);
     }
 
     // ===================================================================================
