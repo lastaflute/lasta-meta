@@ -57,47 +57,66 @@ public class JavaparserSourceTypeHandler {
     //                                                                         Parse Class
     //                                                                         ===========
     public OptionalThing<CompilationUnit> parseClass(Class<?> clazz) {
-        JavaParser javaParser = new JavaParser();
+        final String fqcn = clazz.getName();
+        final JavaParser javaParser = new JavaParser();
         for (String srcDir : srcDirList) {
-            File file = new File(srcDir, clazz.getName().replace('.', File.separatorChar) + ".java");
+            final String fileSeparatedFqcn = fqcn.replace('.', File.separatorChar);
+            File file = new File(srcDir, fileSeparatedFqcn + ".java");
             if (!file.exists()) {
-                file = new File(srcDir, clazz.getName().replace('.', File.separatorChar).replaceAll("\\$.*", "") + ".java");
+                file = new File(srcDir, fileSeparatedFqcn.replaceAll("\\$.*", "") + ".java");
                 if (!file.exists()) {
-                    continue;
+                    continue; // not found, search it in the next directory
                 }
             }
-            if (cachedCompilationUnitMap.containsKey(clazz.getName())) {
-                CachedCompilationUnit cachedCompilationUnit = cachedCompilationUnitMap.get(clazz.getName());
-                if (cachedCompilationUnit != null && cachedCompilationUnit.fileLastModified == file.lastModified()
-                        && cachedCompilationUnit.fileLength == file.length()) {
-                    return OptionalThing.of(cachedCompilationUnit.compilationUnit);
+            if (cachedCompilationUnitMap.containsKey(fqcn)) {
+                final CachedCompilationUnit foundUnit = cachedCompilationUnitMap.get(clazz.getName());
+                if (foundUnit != null) { // cache hit!
+                    if (isNoChangedFile(file, foundUnit)) { // can use the cache
+                        return OptionalThing.of(foundUnit.compilationUnit);
+                    }
                 }
             }
 
-            CachedCompilationUnit cachedCompilationUnit = new CachedCompilationUnit();
+            final CachedCompilationUnit cachedCompilationUnit = new CachedCompilationUnit();
             cachedCompilationUnit.fileLastModified = file.lastModified();
             cachedCompilationUnit.fileLength = file.length();
             try {
-                ParseResult<CompilationUnit> parse = javaParser.parse(file);
-                parse.getResult().ifPresent(compilationUnit -> {
+                final ParseResult<CompilationUnit> result = javaParser.parse(file);
+                result.getResult().ifPresent(compilationUnit -> { // basically present?
                     cachedCompilationUnit.compilationUnit = compilationUnit;
                 });
-            } catch (FileNotFoundException e) {
-                throw new IllegalStateException("Source file don't exist.");
+            } catch (FileNotFoundException e) { // no way, already checked existence
+                throw new IllegalStateException("Source file did not exist: file=" + file);
             }
 
-            cachedCompilationUnitMap.put(clazz.getName(), cachedCompilationUnit);
-            return OptionalThing.of(cachedCompilationUnit.compilationUnit);
+            if (cachedCompilationUnit.compilationUnit != null) { // basically present?
+                cachedCompilationUnitMap.put(fqcn, cachedCompilationUnit);
+                return OptionalThing.of(cachedCompilationUnit.compilationUnit);
+            }
+            // not found by java parser?
+            // so next anyway
         }
+
+        // completely not found in the source directories
         return OptionalThing.ofNullable(null, () -> {
-            throw new IllegalStateException("Source file don't exist.");
+            String msg = "The source file did not exist: clazz=" + fqcn + ", srcDirList=" + srcDirList;
+            throw new IllegalStateException(msg);
         });
     }
 
+    protected boolean isNoChangedFile(File file, CachedCompilationUnit cachedCompilationUnit) {
+        return cachedCompilationUnit.fileLastModified == file.lastModified() // updated?
+                && cachedCompilationUnit.fileLength == file.length(); // size changed?
+    }
+
+    // ===================================================================================
+    //                                                                               Cache
+    //                                                                               =====
     /**
      * @author p1us2er0
+     * @author jflute
      */
-    private static class CachedCompilationUnit {
+    protected static class CachedCompilationUnit {
 
         /** file last modified. */
         private long fileLastModified;
@@ -105,7 +124,7 @@ public class JavaparserSourceTypeHandler {
         /** file length. */
         private long fileLength;
 
-        /** compilation unit. */
+        /** compilation unit. (NotNull: after cache setup) */
         private CompilationUnit compilationUnit;
     }
 }
