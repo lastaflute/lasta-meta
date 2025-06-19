@@ -16,12 +16,14 @@
 package org.lastaflute.meta.document;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.dbflute.bhv.BehaviorReadable;
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
 import org.lastaflute.core.util.ContainerUtil;
@@ -173,8 +175,8 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
     }
 
     // -----------------------------------------------------
-    //                                          Field/Method
-    //                                          ------------
+    //                                                 Field
+    //                                                 -----
     protected void setupFieldItem(ActionDocMeta actionDocMeta, Class<?> methodDeclaringClass) {
         // #thinking jflute does it contain private DI fields? needed? (2021/06/26)
         actionDocMeta.setFieldTypeDocMetaList(Arrays.stream(methodDeclaringClass.getDeclaredFields()).map(field -> {
@@ -190,13 +192,32 @@ public class ActionDocumentAnalyzer extends BaseDocumentAnalyzer {
             typeDocMeta.setAnnotationTypeList(Arrays.asList(field.getAnnotations()));
             typeDocMeta.setAnnotationList(arrangeAnnotationList(typeDocMeta.getAnnotationTypeList()));
 
-            sourceParserReflector.ifPresent(sourceParserReflector -> {
-                sourceParserReflector.reflect(typeDocMeta, field.getType());
-            });
+            if (needsFieldTypeComment(field)) {
+                // parse the class file to get comment and description of the field type
+                // see TypeDocMetaVisitorAdapter class
+                sourceParserReflector.ifPresent(sourceParserReflector -> {
+                    sourceParserReflector.reflect(typeDocMeta, field.getType());
+                });
+            }
             return typeDocMeta;
         }).collect(Collectors.toList()));
     }
 
+    protected boolean needsFieldTypeComment(Field field) {
+        if (BehaviorReadable.class.isAssignableFrom(field.getType())) {
+            // to avoid caching Behavior's all meta data
+            // originally, comment and description for DI field of Behavior are unused
+            // so fixedly skip it
+            // // JavaparserSourceTypeHandler, cache big memory problem
+            // https://github.com/lastaflute/lasta-meta/issues/24
+            return false;
+        }
+        return true;
+    }
+
+    // -----------------------------------------------------
+    //                                                Method
+    //                                                ------
     protected void setupMethodItem(ActionDocMeta actionDocMeta, ActionExecute execute, Method executeMethod) {
         actionDocMeta.setActionExecute(execute);
         actionDocMeta.setMethodName(executeMethod.getName());

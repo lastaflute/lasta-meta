@@ -81,6 +81,11 @@ public class JavaparserSourceTypeHandler {
             cachedCompilationUnit.fileLastModified = file.lastModified();
             cachedCompilationUnit.fileLength = file.length();
             try {
+                // all meta data (that contains fields and methods and comments and ...)
+                // is parsed here and the result has whole data (so heavy)
+                // attention, to avoid big memory
+                // // JavaparserSourceTypeHandler, cache big memory problem
+                // https://github.com/lastaflute/lasta-meta/issues/24
                 final ParseResult<CompilationUnit> result = javaParser.parse(file);
                 result.getResult().ifPresent(compilationUnit -> { // basically present?
                     cachedCompilationUnit.compilationUnit = compilationUnit;
