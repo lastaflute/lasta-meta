@@ -33,6 +33,14 @@ public class OutputMetaPhysical { // precondition: current directory is project 
         return Paths.get(getOutputMetaDir(), "swagger.json");
     }
 
+    public Path getOpenapiJsonPath() { // relative from project root
+        return Paths.get(getOutputMetaDir(), "openapi.json");
+    }
+
+    public Path getOpenapiYamlPath() { // relative from project root
+        return Paths.get(getOutputMetaDir(), "openapi.yaml");
+    }
+
     public String getOutputMetaDir() { // precondition: current directory is project root
         if (new File("./pom.xml").exists()) {
             return "./target/lastadoc/";

@@ -41,6 +41,11 @@ import org.lastaflute.meta.swagger.web.LaActionSwaggerable;
 import org.lastaflute.web.response.JsonResponse;
 import org.lastaflute.web.util.LaRequestUtil;
 
+import io.swagger.v3.core.util.Json;
+import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.parser.converter.SwaggerConverter;
+import io.swagger.v3.parser.core.models.SwaggerParseResult;
+
 /**
  * @author p1us2er0
  * @author jflute
@@ -248,6 +253,17 @@ public class SwaggerGenerator {
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
         outputMetaSerializer.saveSwaggerMeta(json);
+    }
+
+    /**
+     * Save openapi meta of action information to openapi.json & openapi.yaml.
+     * @param swaggerable The action instance that can handle swagger. (NotNull)
+     */
+    public void saveOpenapiMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
+        final String json = extractActionJson(swaggerable);
+        SwaggerParseResult result = new SwaggerConverter().readContents(json, null, null);
+        outputMetaSerializer.saveOpenapiMeta(Json.pretty(result.getOpenAPI()));
+        outputMetaSerializer.saveOpenapiYamlMeta(Yaml.pretty(result.getOpenAPI()));
     }
 
     protected String extractActionJson(LaActionSwaggerable swaggerable) {
