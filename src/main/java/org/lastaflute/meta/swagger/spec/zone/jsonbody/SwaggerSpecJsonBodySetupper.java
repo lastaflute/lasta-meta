@@ -76,15 +76,19 @@ public class SwaggerSpecJsonBodySetupper {
         schema.put("type", "object");
         final List<String> requiredPropertyNameList = propertyHandler.deriveRequiredPropertyNameList(actionDocMeta.getFormTypeDocMeta());
         if (!requiredPropertyNameList.isEmpty()) {
-            schema.put("required", requiredPropertyNameList);
+            // It is treated as a set as an official rule, and should not have any order such as definition order.
+            // It should be in lexicographical order because differences may occur in tool conversion.
+            schema.put("required", requiredPropertyNameList.stream().sorted().collect(Collectors.toList()));
         }
-        schema.put("properties", actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(propertyDocMeta -> {
-            return parameterMapProvider.apply(propertyDocMeta);
-        }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-            final LinkedHashMap<String, Object> propertyMap = DfCollectionUtil.newLinkedHashMap(value);
-            propertyMap.remove("name");
-            return propertyMap;
-        }, (u, v) -> v, LinkedHashMap::new)));
+        if (!actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().isEmpty()) {
+            schema.put("properties", actionDocMeta.getFormTypeDocMeta().getNestTypeDocMetaList().stream().map(propertyDocMeta -> {
+                return parameterMapProvider.apply(propertyDocMeta);
+            }).collect(Collectors.toMap(key -> key.get("name"), value -> {
+                final LinkedHashMap<String, Object> propertyMap = DfCollectionUtil.newLinkedHashMap(value);
+                propertyMap.remove("name");
+                return propertyMap;
+            }, (u, v) -> v, LinkedHashMap::new)));
+        }
 
         // Form or Body's definition
         //   "definitions": {

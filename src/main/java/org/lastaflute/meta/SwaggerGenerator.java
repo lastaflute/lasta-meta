@@ -44,6 +44,7 @@ import org.lastaflute.web.util.LaRequestUtil;
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Yaml;
 import io.swagger.v3.parser.converter.SwaggerConverter;
+import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 
 /**
@@ -261,7 +262,9 @@ public class SwaggerGenerator {
      */
     public void saveOpenapiMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
         final String json = extractActionJson(swaggerable);
-        SwaggerParseResult result = new SwaggerConverter().readContents(json, null, null);
+        ParseOptions options = new ParseOptions();
+        options.setResolve(false);
+        SwaggerParseResult result = new SwaggerConverter().readContents(json, null, options);
         outputMetaSerializer.saveOpenapiMeta(Json.pretty(result.getOpenAPI()));
         outputMetaSerializer.saveOpenapiYamlMeta(Yaml.pretty(result.getOpenAPI()));
     }

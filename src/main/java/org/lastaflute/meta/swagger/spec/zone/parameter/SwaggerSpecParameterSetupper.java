@@ -122,6 +122,7 @@ public class SwaggerSpecParameterSetupper {
             setupArrayAttribute(parameterMap, typeDocMeta, definitionsMap, typeMap);
         } else if (typeDocMeta.getType().equals(Object.class) || Map.class.isAssignableFrom(typeDocMeta.getType())) {
             parameterMap.put("type", "object");
+            parameterMap.put("properties", DfCollectionUtil.emptyMap());
         } else if (Enum.class.isAssignableFrom(typeDocMeta.getType())) {
             // e.g. public AppCDef.PublicProductStatus productStatus;
             @SuppressWarnings("unchecked")
@@ -134,6 +135,7 @@ public class SwaggerSpecParameterSetupper {
             parameterMap.put("$ref", definition);
         } else {
             parameterMap.put("type", "object");
+            parameterMap.put("properties", DfCollectionUtil.emptyMap());
         }
 
         setupValidationAttribute(typeDocMeta, parameterMap);
@@ -356,16 +358,20 @@ public class SwaggerSpecParameterSetupper {
             schema.put("type", "object");
             final List<String> requiredPropertyNameList = propertyHandler.deriveRequiredPropertyNameList(typeDocMeta);
             if (!requiredPropertyNameList.isEmpty()) {
-                schema.put("required", requiredPropertyNameList);
+                // It is treated as a set as an official rule, and should not have any order such as definition order.
+                // It should be in lexicographical order because differences may occur in tool conversion.
+                schema.put("required", requiredPropertyNameList.stream().sorted().collect(Collectors.toList()));
             }
-            schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
-                return toParameterMap(nestTypeDocMeta, definitionsMap);
-            }).collect(Collectors.toMap(key -> key.get("name"), value -> {
-                // #needs_fix p1us2er0 remove name. refactor required. (2017/10/12)
-                final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
-                property.remove("name");
-                return property;
-            }, (u, v) -> v, LinkedHashMap::new)));
+            if (!typeDocMeta.getNestTypeDocMetaList().isEmpty()) {
+                schema.put("properties", typeDocMeta.getNestTypeDocMetaList().stream().map(nestTypeDocMeta -> {
+                    return toParameterMap(nestTypeDocMeta, definitionsMap);
+                }).collect(Collectors.toMap(key -> key.get("name"), value -> {
+                    // #needs_fix p1us2er0 remove name. refactor required. (2017/10/12)
+                    final LinkedHashMap<String, Object> property = DfCollectionUtil.newLinkedHashMap(value);
+                    property.remove("name");
+                    return property;
+                }, (u, v) -> v, LinkedHashMap::new)));
+            }
 
             definitionsMap.put(derivedDefinitionName, schema);
         }

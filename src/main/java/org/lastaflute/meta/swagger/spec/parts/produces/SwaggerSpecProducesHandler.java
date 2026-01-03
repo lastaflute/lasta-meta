@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.dbflute.optional.OptionalThing;
 import org.dbflute.util.DfCollectionUtil;
@@ -65,8 +66,13 @@ public class SwaggerSpecProducesHandler {
             return OptionalThing.of(Arrays.asList("text/plain;charset=UTF-8"));
         }
         final Class<?> produceType = returnTypeDocMeta.getType();
-        final List<String> produceList = produceMap.get(produceType);
-        return OptionalThing.ofNullable(produceList, () -> {
+        final Optional<List<String>> produceList = produceMap.entrySet()
+                .stream()
+                .filter(entry -> entry.getKey().isAssignableFrom(produceType))
+                .map(entry -> entry.getValue())
+                .findFirst();
+
+        return OptionalThing.migratedFrom(produceList, () -> {
             String msg = "Not found the produce: type=" + produceType + ", keys=" + produceMap.keySet();
             throw new IllegalStateException(msg);
         });
