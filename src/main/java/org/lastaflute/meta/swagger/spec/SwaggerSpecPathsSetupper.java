@@ -292,8 +292,14 @@ public class SwaggerSpecPathsSetupper {
 
         //     "summary": "@author jflute",
         //     "description": "@author jflute",
-        httpMethodContentMap.put("summary", derivePathSummary(actionDocMeta));
-        httpMethodContentMap.put("description", derivePathDescription(actionDocMeta));
+        final String summary = derivePathSummary(actionDocMeta);
+        if (summary != null) {
+            httpMethodContentMap.put("summary", summary);
+        }
+        final String description = derivePathDescription(actionDocMeta);
+        if (description != null) {
+            httpMethodContentMap.put("description", description);
+        }
 
         //     "parameters": [
         //       {

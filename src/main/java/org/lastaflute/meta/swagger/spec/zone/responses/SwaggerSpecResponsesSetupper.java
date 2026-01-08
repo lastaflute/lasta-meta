@@ -117,19 +117,30 @@ public class SwaggerSpecResponsesSetupper {
     protected Map<String, Object> buildSuccessResponseContentMap(ActionDocMeta actionDocMeta, String description) {
         final Map<String, Object> contentMap = newContentMapWithDescription(description);
         final TypeDocMeta returnTypeDocMeta = actionDocMeta.getReturnTypeDocMeta();
-        if (!Arrays.asList(HtmlResponse.class, StreamResponse.class)
-                .stream()
-                .anyMatch(clazz -> clazz.isAssignableFrom(returnTypeDocMeta.getType()))
-                && !Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
-            final Map<String, Object> parameterMap = parameterMapProvider.apply(returnTypeDocMeta);
-            parameterMap.remove("name");
-            parameterMap.remove("required");
-            if (parameterMap.containsKey("schema")) {
-                contentMap.putAll(parameterMap);
-            } else {
-                contentMap.put("schema", parameterMap);
-            }
+
+        if (HtmlResponse.class.isAssignableFrom(returnTypeDocMeta.getType())) {
+            contentMap.put("schema", DfCollectionUtil.newLinkedHashMap("type", "string"));
+            return contentMap;
         }
+
+        if (StreamResponse.class.isAssignableFrom(returnTypeDocMeta.getType())) {
+            contentMap.put("schema", DfCollectionUtil.newLinkedHashMap("type", "string", "format", "binary"));
+            return contentMap;
+        }
+
+        if (Arrays.asList(void.class, Void.class).contains(returnTypeDocMeta.getGenericType())) {
+            return contentMap;
+        }
+
+        final Map<String, Object> parameterMap = parameterMapProvider.apply(returnTypeDocMeta);
+        parameterMap.remove("name");
+        parameterMap.remove("required");
+        if (parameterMap.containsKey("schema")) {
+            contentMap.putAll(parameterMap);
+        } else {
+            contentMap.put("schema", parameterMap);
+        }
+
         return contentMap;
     }
 

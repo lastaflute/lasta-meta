@@ -140,11 +140,13 @@ public class SwaggerSpecFormSetupper {
     }
 
     protected void adjustRequired(String httpMethod, Map<String, Object> parameterMap, TypeDocMeta typeDocMeta) {
-        parameterMap.put("required", typeDocMeta.getAnnotationTypeList().stream().anyMatch(annoType -> {
+        if (typeDocMeta.getAnnotationTypeList().stream().anyMatch(annoType -> {
             return annotationHandler.getRequiredAnnotationList()
                     .stream()
                     .anyMatch(requiredAnno -> requiredAnno.isAssignableFrom(annoType.getClass()));
-        }));
+        })) {
+            parameterMap.put("required", true);
+        }
     }
 
     protected void adjustCollectionFormat(String httpMethod, Map<String, Object> parameterMap) {
@@ -162,7 +164,7 @@ public class SwaggerSpecFormSetupper {
     protected boolean needsCollectionFormatMulti(Map<String, Object> parameterMap) {
         // "multi" is only supported for the following inputs as Swagger specification
         // (and also that is enough for LastaFlute form mapping)
-        return isParameterInputQuery(parameterMap) || isParameterInputFormData(parameterMap);
+        return parameterMap.get("items") != null;
     }
 
     // ===================================================================================

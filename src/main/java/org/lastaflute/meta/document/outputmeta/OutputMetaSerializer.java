@@ -47,6 +47,14 @@ public class OutputMetaSerializer { // precondition: current directory is projec
         doSaveOutputMeta(json, analyzedMetaPhysical.getSwaggerJsonPath());
     }
 
+    public void saveOpenapiMeta(String json) {
+        doSaveOutputMeta(json, analyzedMetaPhysical.getOpenapiJsonPath());
+    }
+
+    public void saveOpenapiYamlMeta(String yaml) {
+        doSaveOutputMeta(yaml, analyzedMetaPhysical.getOpenapiYamlPath());
+    }
+
     protected void doSaveOutputMeta(String json, Path path) {
         if (json == null) {
             throw new IllegalArgumentException("The argument 'json' should not be null.");
