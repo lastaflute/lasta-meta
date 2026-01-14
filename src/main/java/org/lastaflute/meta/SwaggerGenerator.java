@@ -43,6 +43,7 @@ import org.lastaflute.web.util.LaRequestUtil;
 
 import io.swagger.v3.core.util.Json;
 import io.swagger.v3.core.util.Yaml;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.parser.converter.SwaggerConverter;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
@@ -247,8 +248,11 @@ public class SwaggerGenerator {
     //  |-RealJsonEngine                       // make JSON string
     //  |-OutputMetaSerializer                 // serialiize swagger.json
     // _/_/_/_/_/_/_/_/_/_/
+    // -----------------------------------------------------
+    //                                           Swagger 2.0
+    //                                           -----------
     /**
-     * Save swagger meta of action information to swagger.json.
+     * Save swagger meta of action information to swagger.json. (as Swagger 2.0)
      * @param swaggerable The action instance that can handle swagger. (NotNull)
      */
     public void saveSwaggerMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
@@ -256,19 +260,45 @@ public class SwaggerGenerator {
         outputMetaSerializer.saveSwaggerMeta(json);
     }
 
+    // -----------------------------------------------------
+    //                                           OpenAPI 3.0
+    //                                           -----------
     /**
-     * Save openapi meta of action information to openapi.json & openapi.yaml.
+     * Save openapi meta of action information to openapi.json & openapi.yaml. (as OpenAPI 3.0)
      * @param swaggerable The action instance that can handle swagger. (NotNull)
      */
     public void saveOpenapiMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
-        final String json = extractActionJson(swaggerable);
-        ParseOptions options = new ParseOptions();
-        options.setResolve(false);
-        SwaggerParseResult result = new SwaggerConverter().readContents(json, null, options);
-        outputMetaSerializer.saveOpenapiMeta(Json.pretty(result.getOpenAPI()));
-        outputMetaSerializer.saveOpenapiYamlMeta(Yaml.pretty(result.getOpenAPI()));
+        final String swaggerV2json = extractActionJson(swaggerable);
+        final ParseOptions options = prepareOpenapiParseOptions();
+
+        final SwaggerConverter converter = newOpenapiSwaggerConverter();
+        final SwaggerParseResult v3Result = converter.readContents(swaggerV2json, /*auth*/null, options);
+        final OpenAPI openAPI = v3Result.getOpenAPI(); // v3object
+
+        // both output for user flexibility
+        outputMetaSerializer.saveOpenapiMeta(Json.pretty(openAPI));
+        outputMetaSerializer.saveOpenapiYamlMeta(Yaml.pretty(openAPI));
     }
 
+    protected ParseOptions prepareOpenapiParseOptions() {
+        final ParseOptions options = newOpenapiParseOptions();
+        // resolve=false to avoid that header parameters are located in HTTP method level as default
+        // https://github.com/lastaflute/lastaflute-test-fortress/commit/0265863762ac2d811dfcf3f6ee50d040fc27bca7
+        options.setResolve(false);
+        return options;
+    }
+
+    protected ParseOptions newOpenapiParseOptions() {
+        return new ParseOptions();
+    }
+
+    protected SwaggerConverter newOpenapiSwaggerConverter() {
+        return new SwaggerConverter();
+    }
+
+    // -----------------------------------------------------
+    //                                           Action JSON
+    //                                           -----------
     protected String extractActionJson(LaActionSwaggerable swaggerable) {
         final JsonResponse<Map<String, Object>> jsonResponse = swaggerable.json();
         return createJsonEngine().toJson(jsonResponse.getJsonResult());

@@ -39,25 +39,34 @@ public class OutputMetaSerializer { // precondition: current directory is projec
     // ===================================================================================
     //                                                                           Save Meta
     //                                                                           =========
+    // -----------------------------------------------------
+    //                                              LastaDoc
+    //                                              --------
     public void saveLastaDocMeta(String json) {
         doSaveOutputMeta(json, analyzedMetaPhysical.getLastaDocJsonPath());
     }
 
-    public void saveSwaggerMeta(String json) {
+    // -----------------------------------------------------
+    //                                               Swagger
+    //                                               -------
+    public void saveSwaggerMeta(String json) { // Swagger 2.0 (as json)
         doSaveOutputMeta(json, analyzedMetaPhysical.getSwaggerJsonPath());
     }
 
-    public void saveOpenapiMeta(String json) {
+    public void saveOpenapiMeta(String json) { // OpenAPI 3.0 (as json)
         doSaveOutputMeta(json, analyzedMetaPhysical.getOpenapiJsonPath());
     }
 
-    public void saveOpenapiYamlMeta(String yaml) {
+    public void saveOpenapiYamlMeta(String yaml) { // OpenAPI 3.0 (as yaml)
         doSaveOutputMeta(yaml, analyzedMetaPhysical.getOpenapiYamlPath());
     }
 
-    protected void doSaveOutputMeta(String json, Path path) {
-        if (json == null) {
-            throw new IllegalArgumentException("The argument 'json' should not be null.");
+    // -----------------------------------------------------
+    //                                          Output Logic
+    //                                          ------------
+    protected void doSaveOutputMeta(String metaText, Path path) {
+        if (metaText == null) {
+            throw new IllegalArgumentException("The argument 'metaText' should not be null.");
         }
         final Path parentPath = path.getParent();
         if (!Files.exists(parentPath)) {
@@ -69,7 +78,7 @@ public class OutputMetaSerializer { // precondition: current directory is projec
         }
 
         try (BufferedWriter bw = Files.newBufferedWriter(path, Charset.forName("UTF-8"))) {
-            bw.write(json);
+            bw.write(metaText);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to write the json to the file: " + path, e);
         }
