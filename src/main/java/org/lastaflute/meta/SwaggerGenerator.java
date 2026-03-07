@@ -264,7 +264,8 @@ public class SwaggerGenerator {
     //                                           OpenAPI 3.0
     //                                           -----------
     /**
-     * Save openapi meta of action information to openapi.json & openapi.yaml. (as OpenAPI 3.0)
+     * Save openapi meta of action information to openapi.json & openapi.yaml. (as OpenAPI 3.0) <br>
+     * The library "swagger-parser-v2-converter" is needed here.
      * @param swaggerable The action instance that can handle swagger. (NotNull)
      */
     public void saveOpenapiMeta(LaActionSwaggerable swaggerable) { // basically called by unit test
