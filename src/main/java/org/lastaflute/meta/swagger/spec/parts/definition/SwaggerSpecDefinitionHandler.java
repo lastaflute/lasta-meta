@@ -25,9 +25,23 @@ import org.lastaflute.meta.document.docmeta.TypeDocMeta;
 public class SwaggerSpecDefinitionHandler {
 
     public String deriveDefinitionName(TypeDocMeta typeDocMeta) {
-        if (typeDocMeta.getTypeName().matches("^[^<]+<(.+)>$")) {
-            return typeDocMeta.getTypeName().replaceAll("^[^<]+<(.+)>$", "$1").replaceAll(" ", "");
+        final String regex = "^[^<]+<(.+)>$";
+
+        String derived = typeDocMeta.getTypeName();
+        if (derived.matches(regex)) {
+            // _/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
+            // e.g.
+            //  org.lastaflute.web.response.JsonResponse<org.docksidestage.app.web.products.ProductsResult>
+            //   -> org.docksidestage.app.web.products.ProductsResult
+            //
+            //  org.lastaflute.web.response.JsonResponse<org.docksidestage.app.web.ballet.dancers.BalletDancersResult>
+            //   -> org.docksidestage.app.web.ballet.dancers.BalletDancersResult
+            //
+            //  java.util.List<org.docksidestage.app.web.wx.validator.WxValidatorForm$SeaBean$RestaurantBean>
+            //   -> org.docksidestage.app.web.wx.validator.WxValidatorForm$SeaBean$RestaurantBean
+            // _/_/_/_/_/_/_/_/
+            derived = derived.replaceAll(regex, "$1");
         }
-        return typeDocMeta.getTypeName().replaceAll(" ", "");
+        return derived.replaceAll(" ", "");
     }
 }
